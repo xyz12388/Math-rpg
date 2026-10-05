@@ -1,0 +1,3151 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>數理勇者：算術之界 - Math RPG Boss Battle</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Noto+Sans+TC:wght@500;700;900&display=swap');
+        
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #030712;
+            color: #f3f4f6;
+            user-select: none;
+            overflow-x: hidden;
+        }
+
+        .pixel-font {
+            font-family: 'Press Start 2P', cursive;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            15% { transform: translate(-10px, 6px) rotate(-2deg); }
+            30% { transform: translate(10px, -6px) rotate(2deg); }
+            45% { transform: translate(-7px, -4px) rotate(-1deg); }
+            60% { transform: translate(7px, 4px) rotate(1deg); }
+            75% { transform: translate(-4px, 2px) rotate(0deg); }
+        }
+
+        .animate-shake {
+            animation: shake 0.45s ease-in-out;
+        }
+
+        @keyframes bossPulse {
+            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 15px rgba(239, 68, 68, 0.4)); }
+            50% { transform: scale(1.05); filter: drop-shadow(0 0 30px rgba(239, 68, 68, 0.9)); }
+        }
+
+        @keyframes bossRage {
+            0%, 100% { transform: scale(1.05); filter: drop-shadow(0 0 25px rgba(168, 85, 247, 0.8)); }
+            50% { transform: scale(1.12) rotate(1deg); filter: drop-shadow(0 0 45px rgba(236, 72, 153, 1)); }
+        }
+
+        @keyframes genesisGlow {
+            0%, 100% { filter: drop-shadow(0 0 20px rgba(234, 179, 8, 0.8)); }
+            50% { filter: drop-shadow(0 0 40px rgba(168, 85, 247, 1)); }
+        }
+
+        @keyframes achievementSlide {
+            0% { transform: translateY(-100%); opacity: 0; }
+            15% { transform: translateY(0); opacity: 1; }
+            85% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-100%); opacity: 0; }
+        }
+
+        .animate-boss { animation: bossPulse 2.5s infinite ease-in-out; }
+        .animate-boss-rage { animation: bossRage 1.2s infinite ease-in-out; }
+        .animate-genesis { animation: genesisGlow 2s infinite ease-in-out; }
+        .animate-achievement { animation: achievementSlide 3.5s forwards cubic-bezier(0.16, 1, 0.3, 1); }
+        .animate-notice { animation: achievementSlide 2.5s forwards cubic-bezier(0.16, 1, 0.3, 1); }
+
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(0.8); }
+            40% { transform: translateY(-35px) scale(1.3); }
+            100% { opacity: 0; transform: translateY(-70px) scale(0.9); }
+        }
+
+        .damage-popup {
+            position: absolute;
+            animation: floatUp 0.85s forwards ease-out;
+            pointer-events: none;
+            font-weight: 900;
+            text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000;
+            z-index: 50;
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0b0f19; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+
+        .key-badge {
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(148, 163, 184, 0.4);
+            color: #f1f5f9;
+            font-family: monospace;
+            font-weight: 800;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            box-shadow: 0 2px 0 rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-2 sm:p-4 bg-slate-950 text-slate-100">
+
+    <div id="game-container" class="w-full max-w-4xl bg-slate-900/90 border-2 border-slate-800 rounded-2xl shadow-2xl overflow-hidden relative min-h-[720px] flex flex-col justify-between backdrop-blur-md">
+        
+        <!-- TOP ACHIEVEMENT NOTIFICATION BANNER -->
+        <div id="achievement-toast" class="hidden absolute top-3 left-1/2 -translate-x-1/2 z-50 bg-gradient-to-r from-amber-600 via-amber-500 to-yellow-500 text-slate-950 p-3 px-5 rounded-2xl shadow-2xl border-2 border-yellow-300 flex items-center gap-3 animate-achievement">
+            <div class="w-10 h-10 rounded-full bg-slate-950 text-amber-400 flex items-center justify-center text-xl shadow-inner border border-amber-400">
+                <i id="toast-icon" class="fa-solid fa-trophy"></i>
+            </div>
+            <div>
+                <span class="text-[10px] uppercase font-black tracking-widest text-slate-900 block">成就達成 UNLOCKED!</span>
+                <h4 id="toast-title" class="font-black text-sm text-slate-950">成就名稱</h4>
+                <p id="toast-desc" class="text-[11px] font-bold text-slate-900/80">成就說明內容...</p>
+            </div>
+        </div>
+
+        <!-- 一般操作提示（非成就） -->
+        <div id="notice-toast" class="hidden absolute top-3 left-1/2 -translate-x-1/2 z-50 bg-slate-800 text-slate-100 py-2.5 px-4 rounded-xl shadow-2xl border border-slate-600 flex items-center gap-2 text-xs sm:text-sm font-bold whitespace-nowrap">
+            <i id="notice-icon" class="fa-solid fa-circle-check text-emerald-400"></i>
+            <span id="notice-text"></span>
+        </div>
+
+        <!-- Header Bar -->
+        <header class="bg-slate-950/90 border-b border-slate-800 p-3 px-4 sm:px-6 flex justify-between items-center z-10 flex-wrap gap-2">
+            <div class="flex items-center gap-2 sm:gap-3 cursor-pointer" onclick="showStartScreen()">
+                <i class="fa-solid fa-wand-magic-sparkles text-amber-400 text-lg sm:text-xl animate-pulse"></i>
+                <h1 class="text-base sm:text-xl font-bold bg-gradient-to-r from-amber-400 via-purple-400 to-red-500 bg-clip-text text-transparent tracking-wide">
+                    數理勇者：算術之界
+                </h1>
+            </div>
+            <div class="flex items-center gap-2 text-xs sm:text-sm">
+                <div id="online-badge" class="hidden items-center gap-1.5 px-2.5 py-1 bg-emerald-950/60 border border-emerald-500/40 rounded-full text-emerald-300 font-bold text-xs whitespace-nowrap">
+                    <span id="online-badge-text"></span>
+                </div>
+                <div class="hidden md:flex items-center gap-1.5 px-3 py-1 bg-amber-950/40 border border-amber-500/40 rounded-full text-amber-300 font-bold text-xs">
+                    <i class="fa-solid fa-award text-amber-400"></i>
+                    <span id="header-title-text">初級冒險者</span>
+                </div>
+                <button onclick="openAchievementsModal()" class="px-2.5 py-1.5 rounded-lg bg-amber-950/80 hover:bg-amber-900 border border-amber-500/50 text-amber-300 font-bold transition flex items-center gap-1.5 shadow-lg">
+                    <i class="fa-solid fa-trophy text-amber-400"></i>
+                    <span>成就/稱號</span>
+                    <span id="achievement-count-badge" class="bg-amber-500 text-slate-950 text-[10px] px-1.5 py-0.2 rounded-full font-black">0/11</span>
+                </button>
+                <button id="unlock-secret-btn" onclick="openPasscodeModal()" class="px-2.5 py-1.5 rounded-lg bg-purple-950/80 hover:bg-purple-900 border border-purple-500/50 text-purple-300 font-bold transition flex items-center gap-1.5 shadow-lg">
+                    <i class="fa-solid fa-key text-amber-400"></i> <span id="secret-btn-label">🔒 ???</span>
+                </button>
+                <button id="sound-toggle" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-volume-high text-amber-400"></i> <span class="hidden sm:inline">音效</span>
+                </button>
+            </div>
+        </header>
+
+        <main id="screen-container" class="relative flex-1 flex flex-col">
+
+            <!-- START / DIFFICULTY SELECTION SCREEN -->
+            <section id="start-screen" class="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 text-center space-y-5 z-10">
+                <div class="space-y-2 max-w-lg">
+                    <div class="inline-block p-3 bg-purple-500/10 rounded-full border border-purple-500/30 mb-1">
+                        <i class="fa-solid fa-dragon text-4xl text-purple-400"></i>
+                    </div>
+                    <h2 class="text-3xl sm:text-4xl font-black text-white tracking-wider">選擇遠征難度</h2>
+                    <p class="text-slate-400 text-sm">解開高階數學謎題施展極限魔法，解鎖史詩成就與創世密碼！</p>
+                    
+                    <div class="pt-2 flex justify-center">
+                        <div class="inline-flex items-center gap-2 px-3.5 py-1.5 bg-gradient-to-r from-amber-500/20 via-purple-500/20 to-amber-500/20 border border-amber-400/50 rounded-full text-amber-300 text-xs font-black shadow-inner">
+                            <i class="fa-solid fa-crown text-amber-400"></i>
+                            <span>目前佩戴稱號：</span>
+                            <span id="start-title-text" class="text-amber-200">初級冒險者</span>
+                        </div>
+                    </div>
+
+                    <div class="pt-2 flex justify-center">
+                        <label class="inline-flex items-center gap-2 bg-slate-950/70 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-300 font-bold">
+                            <i class="fa-solid fa-user-pen text-amber-400"></i>
+                            <span>勇者名稱</span>
+                            <input id="player-name-input" type="text" maxlength="12" autocomplete="off" placeholder="輸入你的名字" oninput="saveNameInput()" class="bg-slate-900 border border-slate-700 focus:border-amber-400 outline-none rounded-lg px-2 py-1 w-32 sm:w-40 text-amber-200 placeholder-slate-600">
+                        </label>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5 w-full max-w-3xl">
+                    <button onclick="startGame('easy')" class="group p-4 bg-slate-800/80 hover:bg-slate-700/80 border border-emerald-500/40 hover:border-emerald-400 rounded-xl transition duration-300 flex flex-col items-center text-center gap-2 hover:-translate-y-1 shadow-lg shadow-emerald-950/20">
+                        <div class="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 text-xl group-hover:scale-110 transition">
+                            <i class="fa-solid fa-ghost"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-emerald-400">簡單 - 綠史萊姆王</h3>
+                            <p class="text-[11px] text-slate-400 mt-1">加減乘除/平方/九九乘法<br>HP: 120 | 倒數 10s</p>
+                            <span id="best-time-easy" class="inline-block mt-2 text-[10px] bg-slate-950/80 px-2.5 py-0.5 rounded-full border border-emerald-500/30 text-emerald-300 font-mono font-bold">⏱️ 最速: --</span>
+                        </div>
+                    </button>
+
+                    <button onclick="startGame('medium')" class="group p-4 bg-slate-800/80 hover:bg-slate-700/80 border border-amber-500/40 hover:border-amber-400 rounded-xl transition duration-300 flex flex-col items-center text-center gap-2 hover:-translate-y-1 shadow-lg shadow-amber-950/20">
+                        <div class="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 text-xl group-hover:scale-110 transition">
+                            <i class="fa-solid fa-dragon"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-amber-400">中等 - 影之赤龍</h3>
+                            <p class="text-[11px] text-slate-400 mt-1">四則混合/分數/幾何/未知數<br>HP: 220 | 倒數 8s</p>
+                            <span id="best-time-medium" class="inline-block mt-2 text-[10px] bg-slate-950/80 px-2.5 py-0.5 rounded-full border border-amber-500/30 text-amber-300 font-mono font-bold">⏱️ 最速: --</span>
+                        </div>
+                    </button>
+
+                    <button onclick="startGame('hard')" class="group p-4 bg-slate-800/80 hover:bg-slate-700/80 border border-red-500/40 hover:border-red-400 rounded-xl transition duration-300 flex flex-col items-center text-center gap-2 hover:-translate-y-1 shadow-lg shadow-red-950/20">
+                        <div class="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center text-red-400 text-xl group-hover:scale-110 transition">
+                            <i class="fa-solid fa-skull"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-red-400">困難 - 數理魔皇</h3>
+                            <p class="text-[11px] text-slate-400 mt-1">一元二次/因倍數/百分率/數列<br>HP: 380 | 倒數 6.5s</p>
+                            <span id="best-time-hard" class="inline-block mt-2 text-[10px] bg-slate-950/80 px-2.5 py-0.5 rounded-full border border-red-500/30 text-red-300 font-mono font-bold">⏱️ 最速: --</span>
+                        </div>
+                    </button>
+
+                    <button onclick="startGame('nightmare')" class="group p-4 bg-slate-800/80 hover:bg-slate-700/80 border border-purple-500/50 hover:border-purple-400 rounded-xl transition duration-300 flex flex-col items-center text-center gap-2 hover:-translate-y-1 shadow-lg shadow-purple-950/30">
+                        <div class="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 text-xl group-hover:scale-110 transition">
+                            <i class="fa-solid fa-eye"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-purple-400">噩夢 - 虛空主宰</h3>
+                            <p class="text-[11px] text-slate-400 mt-1">二階行列式/根號簡化/勾股/對數<br>HP: 550 | 倒數 5.5s | 護盾</p>
+                            <span id="best-time-nightmare" class="inline-block mt-2 text-[10px] bg-slate-950/80 px-2.5 py-0.5 rounded-full border border-purple-500/30 text-purple-300 font-mono font-bold">⏱️ 最速: --</span>
+                        </div>
+                    </button>
+
+                    <button onclick="startGame('hell')" class="group p-4 bg-slate-800/80 hover:bg-slate-700/80 border border-fuchsia-500/60 hover:border-fuchsia-400 rounded-xl transition duration-300 flex flex-col items-center text-center gap-2 hover:-translate-y-1 shadow-lg shadow-fuchsia-950/40">
+                        <div class="w-10 h-10 rounded-full bg-fuchsia-500/20 flex items-center justify-center text-fuchsia-400 text-xl group-hover:scale-110 transition">
+                            <i class="fa-solid fa-meteor"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-fuchsia-400">地獄 - 無限神龍</h3>
+                            <p class="text-[11px] text-slate-400 mt-1">極限/二階行列式/三角/排列組合<br>HP: 800 | 倒數 5s | 📜掉落密碼</p>
+                            <span id="best-time-hell" class="inline-block mt-2 text-[10px] bg-slate-950/80 px-2.5 py-0.5 rounded-full border border-fuchsia-500/30 text-fuchsia-300 font-mono font-bold">⏱️ 最速: --</span>
+                        </div>
+                    </button>
+
+                    <button id="genesis-card-btn" onclick="handleGenesisClick()" class="group p-4 bg-slate-900 border border-slate-700 rounded-xl transition duration-300 flex flex-col items-center text-center gap-2 relative overflow-hidden shadow-xl">
+                        <div id="genesis-icon-bg" class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-500 text-xl group-hover:scale-110 transition">
+                            <i id="genesis-icon" class="fa-solid fa-lock"></i>
+                        </div>
+                        <div>
+                            <h3 id="genesis-card-title" class="font-bold text-slate-400">??? - 隱藏難度</h3>
+                            <p id="genesis-card-desc" class="text-[11px] text-slate-500 mt-1">需在地獄模式獲勝取得紙條密碼<br>或點擊右上角解鎖</p>
+                            <span id="best-time-genesis" class="inline-block mt-2 text-[10px] bg-slate-950/80 px-2.5 py-0.5 rounded-full border border-slate-700 text-slate-400 font-mono font-bold">⏱️ 最速: --</span>
+                        </div>
+                    </button>
+                </div>
+
+                <div class="flex flex-wrap justify-center gap-2">
+                    <button onclick="openAccountModal()" class="px-4 py-2 bg-sky-950/70 hover:bg-sky-900 border border-sky-500/50 font-bold text-sky-300 rounded-xl transition flex items-center gap-2 text-xs">
+                        <i class="fa-solid fa-user"></i> <span id="account-btn-text">登入 / 註冊</span>
+                    </button>
+                    <button onclick="openLeaderboardModal()" class="px-4 py-2 bg-amber-950/70 hover:bg-amber-900 border border-amber-500/50 font-bold text-amber-300 rounded-xl transition flex items-center gap-2 text-xs">
+                        <i class="fa-solid fa-ranking-star"></i> 勇者排行榜
+                    </button>
+                    <button onclick="rankedOpenLobby()" class="px-4 py-2 bg-gradient-to-r from-rose-700 to-orange-600 hover:from-rose-600 hover:to-orange-500 border border-orange-300/60 font-black text-white rounded-xl transition flex items-center gap-2 text-xs shadow-lg">
+                        <i class="fa-solid fa-khanda"></i> ⚔️ 排位賽
+                    </button>
+                    <button onclick="openStatsModal()" class="px-4 py-2 bg-cyan-950/70 hover:bg-cyan-900 border border-cyan-500/50 font-bold text-cyan-300 rounded-xl transition flex items-center gap-2 text-xs">
+                        <i class="fa-solid fa-chart-simple"></i> 遊玩統計
+                    </button>
+                    <button onclick="openBackupModal()" class="px-4 py-2 bg-violet-950/70 hover:bg-violet-900 border border-violet-500/50 font-bold text-violet-300 rounded-xl transition flex items-center gap-2 text-xs">
+                        <i class="fa-solid fa-floppy-disk"></i> 備份 / 還原進度
+                    </button>
+                    <button onclick="openClearRecordsModal()" class="px-4 py-2 bg-red-950/60 hover:bg-red-900 border border-red-500/40 font-bold text-red-300 rounded-xl transition flex items-center gap-2 text-xs">
+                        <i class="fa-solid fa-trash-can"></i> 刪除速通紀錄
+                    </button>
+                </div>
+            </section>
+
+            <section id="battle-screen" class="hidden flex-1 flex flex-col justify-between p-3 sm:p-5 relative">
+                
+                <div id="damage-container" class="absolute inset-0 pointer-events-none z-30"></div>
+
+                <div class="space-y-4">
+                    <!-- Boss Box -->
+                    <div id="boss-box" class="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 sm:p-4 flex flex-col sm:flex-row items-center gap-4 relative overflow-hidden transition">
+                        <div class="relative flex-shrink-0">
+                            <div id="boss-avatar" class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border-2 border-red-500/50 flex items-center justify-center text-4xl sm:text-5xl animate-boss text-red-500 shadow-xl">
+                                <i id="boss-icon" class="fa-solid fa-ghost"></i>
+                            </div>
+                            <div id="boss-phase-badge" class="absolute -top-2 -right-2 bg-purple-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full border border-purple-300 hidden">
+                                PHASE 2
+                            </div>
+                        </div>
+
+                        <div class="flex-1 w-full space-y-2">
+                            <div class="flex justify-between items-center">
+                                <div class="flex items-center gap-2">
+                                    <span id="boss-name" class="font-black text-base sm:text-lg text-red-400 tracking-wide">BOSS NAME</span>
+                                    <span id="boss-shield-badge" class="hidden text-[10px] bg-cyan-950 border border-cyan-400 text-cyan-300 px-2 py-0.5 rounded-full font-bold">
+                                        <i class="fa-solid fa-shield-halved mr-1"></i>護盾破除: <span id="shield-hits-left">3</span>次
+                                    </span>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <span id="battle-elapsed-time" class="text-xs font-mono text-amber-300 bg-slate-900 border border-amber-500/30 px-2 py-0.5 rounded-md"><i class="fa-regular fa-clock mr-1"></i>0.0s</span>
+                                    <span id="boss-hp-text" class="text-xs font-mono text-slate-300">100 / 100 HP</span>
+                                </div>
+                            </div>
+                            <div class="w-full h-3 bg-slate-800 rounded-full overflow-hidden p-0.5">
+                                <div id="boss-hp-bar" class="h-full bg-red-500 transition-all duration-300 w-full rounded-full"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Player HUD -->
+                    <div id="player-box" class="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-slate-950/60 border border-slate-800 p-3 rounded-xl">
+                        <div class="space-y-1">
+                            <div class="flex justify-between items-center text-xs font-bold text-emerald-400">
+                                <span><i class="fa-solid fa-heart text-red-500 mr-1"></i>勇者 HP</span>
+                                <span id="player-hp-text">100/100</span>
+                            </div>
+                            <div class="w-full h-3 bg-slate-800 rounded-full overflow-hidden p-0.5">
+                                <div id="player-hp-bar" class="h-full bg-emerald-500 transition-all duration-300 w-full rounded-full"></div>
+                            </div>
+                            <div class="text-[10px] text-amber-300 font-bold truncate flex items-center gap-1 pt-0.5">
+                                <i class="fa-solid fa-certificate text-amber-400"></i>
+                                <span id="hud-title-text">初級冒險者</span>
+                            </div>
+                        </div>
+
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-xs font-bold text-blue-400">
+                                <span><i class="fa-solid fa-bolt text-amber-400 mr-1"></i>魔力 MP</span>
+                                <span id="player-mp-text">0/100</span>
+                            </div>
+                            <div class="w-full h-3 bg-slate-800 rounded-full overflow-hidden p-0.5">
+                                <div id="player-mp-bar" class="h-full bg-blue-500 transition-all duration-300 w-0 rounded-full"></div>
+                            </div>
+                        </div>
+
+                        <div class="col-span-2 sm:col-span-1 flex items-center justify-around sm:justify-end gap-4 text-xs">
+                            <div class="text-center">
+                                <div class="text-slate-400 text-[10px]">連擊 COMBO</div>
+                                <div id="combo-count" class="font-black text-amber-400 text-lg">0x</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-slate-400 text-[10px]">得分 SCORE</div>
+                                <div id="score-text" class="font-bold text-white text-lg">0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Skills Row with Hotkeys -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <button onclick="useSkill('heal')" id="skill-heal-btn" class="p-2 bg-slate-800/90 hover:bg-slate-700 border border-emerald-500/30 rounded-lg flex items-center justify-between transition text-xs text-emerald-300 disabled:opacity-40">
+                            <div class="flex items-center gap-1.5">
+                                <i class="fa-solid fa-kit-medical text-sm"></i>
+                                <span class="font-bold">治癒 (30MP)</span>
+                            </div>
+                            <span class="key-badge">1/Q</span>
+                        </button>
+                        <button onclick="useSkill('shield')" id="skill-shield-btn" class="p-2 bg-slate-800/90 hover:bg-slate-700 border border-cyan-500/30 rounded-lg flex items-center justify-between transition text-xs text-cyan-300 disabled:opacity-40">
+                            <div class="flex items-center gap-1.5">
+                                <i class="fa-solid fa-shield-cat text-sm"></i>
+                                <span class="font-bold">護盾 (40MP)</span>
+                            </div>
+                            <span class="key-badge">2/W</span>
+                        </button>
+                        <button onclick="useSkill('berserk')" id="skill-berserk-btn" class="p-2 bg-slate-800/90 hover:bg-slate-700 border border-orange-500/30 rounded-lg flex items-center justify-between transition text-xs text-orange-300 disabled:opacity-40">
+                            <div class="flex items-center gap-1.5">
+                                <i class="fa-solid fa-fire text-sm"></i>
+                                <span class="font-bold">狂暴 (60MP)</span>
+                            </div>
+                            <span class="key-badge">3/E</span>
+                        </button>
+                        <button onclick="useSkill('hint')" id="skill-hint-btn" class="p-2 bg-slate-800/90 hover:bg-slate-700 border border-purple-500/30 rounded-lg flex items-center justify-between transition text-xs text-purple-300 disabled:opacity-40">
+                            <div class="flex items-center gap-1.5">
+                                <i class="fa-solid fa-eye text-sm"></i>
+                                <span class="font-bold">真理 (30MP)</span>
+                            </div>
+                            <span class="key-badge">4/R</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-3 bg-slate-950 border-2 border-slate-800 rounded-xl p-3.5 sm:p-5 space-y-3.5 shadow-2xl">
+                    <div class="flex justify-between items-center text-xs">
+                        <span id="question-timer-label" class="font-mono text-amber-400 font-bold">⏳ 剩餘時間: 10.0s</span>
+                        <span class="text-slate-400 text-[11px]">快捷鍵：[A/1] [B/2] [C/3] [D/4]</span>
+                    </div>
+                    <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                        <div id="question-timer-bar" class="h-full bg-amber-400 transition-all duration-100 w-full"></div>
+                    </div>
+
+                    <div class="text-center py-3 px-2 bg-slate-900/90 border border-slate-800 rounded-lg relative overflow-hidden">
+                        <span class="text-[10px] uppercase tracking-widest text-slate-400 font-bold block mb-1">計算答案發動魔法</span>
+                        <div id="question-text" class="text-xl sm:text-2xl md:text-3xl font-black text-amber-300 tracking-wider flex items-center justify-center gap-2">
+                            ? + ? = ?
+                        </div>
+                    </div>
+
+                    <div id="options-grid" class="grid grid-cols-2 gap-2.5">
+                        <!-- Choices injected via JS -->
+                    </div>
+                </div>
+
+                <!-- REAL-TIME EXPLANATION MODAL -->
+                <div id="explanation-modal" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md z-50 p-4 sm:p-6 flex flex-col justify-between rounded-xl border-2 border-red-500/60 shadow-2xl">
+                    <div class="space-y-4 overflow-y-auto pr-1">
+                        <div class="flex items-center gap-3 border-b border-slate-800 pb-3">
+                            <div class="w-10 h-10 rounded-full bg-red-500/20 border border-red-500/50 flex items-center justify-center text-red-400 text-xl flex-shrink-0">
+                                <i class="fa-solid fa-book-open"></i>
+                            </div>
+                            <div>
+                                <h3 id="exp-modal-title" class="text-lg font-black text-red-400">答錯反擊！觀念與解題步驟解析</h3>
+                                <p class="text-xs text-slate-400">掌握算數奧秘，吸收知識才能施展更強魔法 (按 Space / Enter 可繼續)</p>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 space-y-3">
+                            <div class="flex justify-between items-center text-xs">
+                                <span class="text-slate-400">題目：</span>
+                                <span id="exp-q-text" class="font-bold text-amber-300 text-sm"></span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 text-xs">
+                                <div class="bg-red-950/40 border border-red-800/40 p-2 rounded-lg">
+                                    <span class="text-slate-400 block text-[10px]">你的答案</span>
+                                    <span id="exp-user-ans" class="font-bold text-red-400 text-sm"></span>
+                                </div>
+                                <div class="bg-emerald-950/40 border border-emerald-800/40 p-2 rounded-lg">
+                                    <span class="text-slate-400 block text-[10px]">正確答案</span>
+                                    <span id="exp-correct-ans" class="font-bold text-emerald-400 text-sm"></span>
+                                </div>
+                            </div>
+                            <div class="space-y-1 pt-1 border-t border-slate-800">
+                                <span class="text-amber-400 text-xs font-bold flex items-center gap-1">
+                                    <i class="fa-solid fa-lightbulb"></i> 詳細解題觀念與步驟：
+                                </span>
+                                <p id="exp-step-text" class="text-xs text-slate-300 leading-relaxed bg-slate-950 p-3 rounded-lg border border-slate-800 font-mono whitespace-pre-line"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="closeExplanationModal()" class="w-full mt-3 py-3 bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 font-black text-white rounded-xl shadow-lg transition flex items-center justify-center gap-2">
+                        <span>領悟知識，重返戰場！</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+
+            </section>
+
+            <!-- RANKED SCREEN -->
+            <section id="ranked-screen" class="hidden flex-1 flex flex-col p-4 sm:p-6 overflow-y-auto">
+                <div id="rk-lobby" class="flex-1 flex flex-col items-center justify-center text-center space-y-4">
+                    <div class="text-5xl">⚔️</div>
+                    <h2 class="text-2xl font-black text-white">排位賽</h2>
+                    <div class="bg-slate-900 border border-amber-500/40 rounded-xl px-8 py-3">
+                        <div class="text-[11px] text-slate-400 font-bold">目前積分</div>
+                        <div id="rk-rating" class="text-3xl font-black text-amber-300">1000</div>
+                        <div id="rk-record" class="text-xs text-slate-400 mt-1"></div>
+                    </div>
+                    <ul class="text-xs text-slate-300 text-left space-y-1 max-w-xs">
+                        <li>⏱️ 對戰 1 分 30 秒，分數最高的人獲勝</li>
+                        <li>🎯 每回合隨機出 3 個難度，自己選一個作答</li>
+                        <li>📈 難度越高、答對得分越高，答錯不扣分</li>
+                        <li>👥 配對到真人就即時對戰，沒人就由 AI 應戰</li>
+                    </ul>
+                    <p id="rk-points-hint" class="text-[11px] text-slate-500 max-w-xs"></p>
+                    <button onclick="rankedStartSearch()" class="px-8 py-3 bg-gradient-to-r from-rose-600 to-orange-500 hover:from-rose-500 hover:to-orange-400 font-black text-white rounded-xl shadow-lg text-sm">開始配對</button>
+                    <button onclick="showStartScreen()" class="px-6 py-2 bg-slate-800 hover:bg-slate-700 font-bold text-slate-300 rounded-xl text-xs">返回主選單</button>
+                </div>
+
+                <div id="rk-search" class="hidden flex-1 flex flex-col items-center justify-center text-center space-y-4">
+                    <div class="w-14 h-14 rounded-full border-4 border-slate-700 border-t-orange-400 animate-spin"></div>
+                    <div id="rk-search-text" class="text-lg font-black text-white">配對中…</div>
+                    <p class="text-xs text-slate-400">最多等 10 秒，沒有人就由 AI 應戰</p>
+                    <button onclick="rankedCancel()" class="px-6 py-2 bg-slate-800 hover:bg-slate-700 font-bold text-slate-300 rounded-xl text-xs">取消</button>
+                </div>
+
+                <div id="rk-match" class="hidden flex-1 flex flex-col space-y-3">
+                    <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                        <div class="bg-slate-900 border border-emerald-500/40 rounded-xl p-2 text-center min-w-0">
+                            <div id="rk-me-name" class="text-xs font-bold text-emerald-300 truncate"></div>
+                            <div id="rk-me-score" class="text-2xl font-black text-white">0</div>
+                        </div>
+                        <div id="rk-timer" class="text-2xl font-black text-amber-300 tabular-nums px-1">1:30</div>
+                        <div class="bg-slate-900 border border-rose-500/40 rounded-xl p-2 text-center min-w-0">
+                            <div id="rk-opp-name" class="text-xs font-bold text-rose-300 truncate"></div>
+                            <div id="rk-opp-score" class="text-2xl font-black text-white">0</div>
+                        </div>
+                    </div>
+                    <div class="h-2 bg-slate-800 rounded-full overflow-hidden"><div id="rk-bar" class="h-full bg-amber-400" style="width:100%"></div></div>
+                    <div id="rk-countdown" class="hidden text-center text-5xl font-black text-white py-10"></div>
+                    <div id="rk-choose" class="hidden space-y-2">
+                        <p class="text-center text-sm text-slate-300 font-bold">選擇這一回合的難度</p>
+                        <div id="rk-choices" class="grid gap-2"></div>
+                    </div>
+                    <div id="rk-question" class="hidden space-y-3">
+                        <div class="flex justify-between items-center text-xs">
+                            <span id="rk-q-diff" class="px-2.5 py-1 rounded-full bg-slate-800 border border-slate-600 font-bold text-amber-300"></span>
+                            <button onclick="rankedSkip()" class="px-3 py-1 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 font-bold">放棄這題</button>
+                        </div>
+                        <div id="rk-q-text" class="text-xl sm:text-2xl font-bold text-white text-center py-3 min-h-[4rem]"></div>
+                        <div id="rk-options" class="grid grid-cols-2 gap-2"></div>
+                    </div>
+                </div>
+
+                <div id="rk-result" class="hidden flex-1 flex flex-col items-center justify-center text-center space-y-4">
+                    <div id="rk-result-title" class="text-4xl font-black text-white">勝利</div>
+                    <div id="rk-result-score" class="text-3xl font-black text-amber-300 tabular-nums">0 : 0</div>
+                    <div id="rk-result-names" class="text-xs text-slate-400"></div>
+                    <div id="rk-result-delta" class="text-sm font-bold text-slate-200"></div>
+                    <div class="flex flex-col gap-2 w-full max-w-xs pt-2">
+                        <button onclick="rankedStartSearch()" class="py-3 bg-gradient-to-r from-rose-600 to-orange-500 font-black text-white rounded-xl text-sm">再來一場</button>
+                        <button onclick="rankedOpenLobby()" class="py-2.5 bg-slate-800 hover:bg-slate-700 font-bold text-slate-200 rounded-xl text-sm">返回排位大廳</button>
+                        <button onclick="showStartScreen()" class="py-2.5 bg-slate-800 hover:bg-slate-700 font-bold text-slate-300 rounded-xl text-xs">返回主選單</button>
+                    </div>
+                </div>
+            </section>
+
+            <section id="end-screen" class="hidden flex-1 flex flex-col p-4 sm:p-6 space-y-4 overflow-y-auto">
+                <div class="text-center space-y-2">
+                    <div id="end-icon-box" class="w-16 h-16 rounded-full mx-auto flex items-center justify-center text-3xl shadow-xl">
+                        <i id="end-icon" class="fa-solid fa-trophy"></i>
+                    </div>
+                    <div id="end-title-badge-container" class="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-950/60 border border-amber-500/50 rounded-full text-amber-300 text-xs font-black shadow-lg">
+                        <i class="fa-solid fa-award text-amber-400"></i>
+                        <span id="end-title-text">初級冒險者</span>
+                    </div>
+                    <h2 id="end-title" class="text-3xl font-black text-amber-400">討伐成功！巨獸倒下</h2>
+                    <p id="end-subtitle" class="text-slate-400 text-xs">你用無懈可擊的算數魔法守護了世界！</p>
+                    <p id="end-rank-text" class="hidden text-sm font-bold text-cyan-300 pt-1"></p>
+                    <p id="end-online-rank-text" class="hidden text-xs font-bold text-emerald-300 pt-0.5"></p>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 bg-slate-950/80 p-3.5 border border-slate-800 rounded-xl text-center">
+                    <div>
+                        <div class="text-[10px] text-slate-400">通關花費時間</div>
+                        <div id="end-clear-time" class="text-xl font-black text-cyan-400 font-mono">0.0s</div>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-slate-400">最終得分</div>
+                        <div id="end-score" class="text-xl font-black text-amber-400">0</div>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-slate-400">最高連擊</div>
+                        <div id="end-max-combo" class="text-xl font-black text-purple-400">0x</div>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-slate-400">答對題數</div>
+                        <div id="end-correct-count" class="text-xl font-black text-emerald-400">0</div>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-slate-400">答錯/超時</div>
+                        <div id="end-wrong-count" class="text-xl font-black text-red-400">0</div>
+                    </div>
+                </div>
+
+                <!-- MISTAKE ANALYSIS LOG SECTION -->
+                <div class="flex-1 bg-slate-950/90 border border-slate-800 rounded-xl p-4 space-y-3 flex flex-col justify-between">
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                        <span class="font-bold text-amber-400 text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-book-bookmark"></i> 本局錯題檢討本 (賽後檢討)
+                        </span>
+                        <span id="mistake-badge-count" class="text-[10px] bg-red-950 text-red-400 border border-red-800 px-2 py-0.5 rounded-full font-bold">0 題需要複習</span>
+                    </div>
+
+                    <div id="mistakes-container" class="space-y-3 max-h-[220px] overflow-y-auto pr-1">
+                        <!-- Wrong items rendered here -->
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row gap-2 pt-2">
+                        <button id="retry-mistakes-btn" onclick="startMistakePractice()" class="flex-1 py-2.5 bg-amber-600 hover:bg-amber-500 font-bold text-slate-950 rounded-lg transition flex items-center justify-center gap-2 text-sm shadow-lg disabled:opacity-40">
+                            <i class="fa-solid fa-graduation-cap"></i> 針對本局錯題單獨練習
+                        </button>
+                        <button onclick="openLeaderboardModal(gameState.diff, gameState.lastRank ? gameState.lastRank.id : null)" class="flex-1 py-2.5 bg-amber-950/70 hover:bg-amber-900 font-bold text-amber-300 rounded-lg border border-amber-500/50 transition flex items-center justify-center gap-2 text-sm">
+                            <i class="fa-solid fa-ranking-star"></i> 查看排行榜
+                        </button>
+                        <button onclick="showStartScreen()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 font-bold text-slate-200 rounded-lg border border-slate-700 transition flex items-center justify-center gap-2 text-sm">
+                            <i class="fa-solid fa-house"></i> 返回主選單
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ACHIEVEMENTS MODAL -->
+            <div id="achievements-modal" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md z-50 p-4 sm:p-6 flex flex-col justify-between space-y-3">
+                <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-amber-500/20 border border-amber-500/50 flex items-center justify-center text-amber-400 text-xl">
+                            <i class="fa-solid fa-trophy"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-black text-amber-300">勇者榮譽殿堂 (成就系統)</h3>
+                            <p class="text-xs text-slate-400">解鎖成就展現強大數理實力！</p>
+                        </div>
+                    </div>
+                    <button onclick="closeAchievementsModal()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold flex items-center justify-center">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <div id="achievements-list-container" class="flex-1 overflow-y-auto space-y-2.5 pr-1 max-h-[480px]">
+                    <!-- Injected dynamically via JavaScript -->
+                </div>
+
+                <div class="flex gap-2.5">
+                    <button onclick="openResetConfirmModal()" class="px-4 py-3 bg-red-950/80 hover:bg-red-900 border border-red-500/50 font-bold text-red-300 rounded-xl transition flex items-center gap-2 text-xs sm:text-sm">
+                        <i class="fa-solid fa-trash-can"></i> 重置成就
+                    </button>
+                    <button onclick="closeAchievementsModal()" class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 font-bold text-slate-200 rounded-xl transition text-xs sm:text-sm">
+                        返回冒險
+                    </button>
+                </div>
+            </div>
+
+            <!-- RESET ACHIEVEMENTS CONFIRM MODAL -->
+            <div id="reset-confirm-modal" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md z-50 p-6 flex flex-col items-center justify-center space-y-4">
+                <div class="w-16 h-16 rounded-full bg-red-950/80 border-2 border-red-500 flex items-center justify-center text-red-400 text-2xl shadow-xl">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <div class="text-center space-y-1">
+                    <h3 class="text-2xl font-black text-white">確定清除所有成就？</h3>
+                    <p class="text-xs text-slate-400">此動作將清空你所解鎖的所有勇者成就記錄，無法復原！</p>
+                </div>
+                <div class="flex gap-3 w-full max-w-xs pt-2">
+                    <button onclick="executeResetAchievements()" class="flex-1 py-3 bg-red-600 hover:bg-red-500 font-bold text-white rounded-xl shadow-lg transition text-xs sm:text-sm">確定重置</button>
+                    <button onclick="closeResetConfirmModal()" class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 font-bold text-slate-300 rounded-xl transition text-xs sm:text-sm">取消</button>
+                </div>
+            </div>
+
+            <!-- CLEAR SPEEDRUN RECORDS CONFIRM MODAL -->
+            <div id="clear-records-modal" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md z-50 p-6 flex flex-col items-center justify-center space-y-4">
+                <div class="w-16 h-16 rounded-full bg-red-950/80 border-2 border-red-500 flex items-center justify-center text-red-400 text-2xl shadow-xl">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <div class="text-center space-y-1">
+                    <h3 class="text-2xl font-black text-white">確定刪除所有速通紀錄？</h3>
+                    <p class="text-xs text-slate-400">各難度的最速通關時間將被清空，無法復原！</p>
+                </div>
+                <div class="flex gap-3 w-full max-w-xs pt-2">
+                    <button onclick="executeClearRecords()" class="flex-1 py-3 bg-red-600 hover:bg-red-500 font-bold text-white rounded-xl shadow-lg transition text-xs sm:text-sm">確定刪除</button>
+                    <button onclick="closeClearRecordsModal()" class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 font-bold text-slate-300 rounded-xl transition text-xs sm:text-sm">取消</button>
+                </div>
+            </div>
+
+            <!-- ACCOUNT MODAL -->
+            <div id="account-modal" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md z-50 p-5 sm:p-6 flex flex-col space-y-3">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-black text-sky-300 flex items-center gap-2"><i class="fa-solid fa-user"></i> 勇者帳號</h3>
+                    <button onclick="closeAccountModal()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div id="acc-out" class="space-y-3">
+                    <p class="text-xs text-slate-400 leading-relaxed">用「名稱 + 密碼」建立帳號後，成就、速通紀錄、統計會同步到雲端，排行榜成績也會跟著帳號走。換手機、換網址，登入就能接續。<br>密碼忘記無法找回，請記好。</p>
+                    <input id="acc-name" type="text" maxlength="12" autocomplete="username" placeholder="名稱（最多 12 字）" class="w-full bg-slate-900 border border-slate-700 focus:border-sky-400 outline-none rounded-xl px-3 py-2.5 text-sm text-slate-100 placeholder-slate-600">
+                    <input id="acc-pw" type="password" maxlength="20" autocomplete="current-password" placeholder="密碼（4 到 20 個字元）" class="w-full bg-slate-900 border border-slate-700 focus:border-sky-400 outline-none rounded-xl px-3 py-2.5 text-sm text-slate-100 placeholder-slate-600">
+                    <div class="flex gap-2">
+                        <button onclick="doLogin()" class="flex-1 py-2.5 bg-sky-600 hover:bg-sky-500 font-bold text-white rounded-xl text-sm">登入</button>
+                        <button onclick="doSignup()" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 font-bold text-white rounded-xl text-sm">註冊新帳號</button>
+                    </div>
+                </div>
+                <div id="acc-in" class="hidden space-y-3">
+                    <div class="bg-slate-900 border border-sky-500/40 rounded-xl p-4 text-center">
+                        <div class="text-[11px] text-slate-400 font-bold">目前登入</div>
+                        <div id="acc-current" class="text-xl font-black text-sky-300 mt-1"></div>
+                        <div id="acc-sync" class="text-[11px] text-slate-500 mt-2"></div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="doSyncNow()" class="flex-1 py-2.5 bg-sky-600 hover:bg-sky-500 font-bold text-white rounded-xl text-sm">立即同步</button>
+                        <button onclick="doLogout()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 font-bold text-slate-100 rounded-xl text-sm">登出</button>
+                    </div>
+                    <p class="text-[11px] text-slate-500 leading-relaxed">遊玩後會自動同步。登出只會登出這台裝置，雲端進度不會被刪除。</p>
+                </div>
+                <p id="acc-msg" class="text-xs min-h-[1rem]"></p>
+                <div class="flex-1"></div>
+                <button onclick="closeAccountModal()" class="py-3 bg-slate-800 hover:bg-slate-700 font-bold text-slate-200 rounded-xl transition text-sm">關閉</button>
+            </div>
+
+            <!-- BACKUP MODAL -->
+            <div id="backup-modal" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md z-50 p-5 sm:p-6 flex flex-col space-y-3">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-black text-violet-300 flex items-center gap-2"><i class="fa-solid fa-floppy-disk"></i> 備份 / 還原進度</h3>
+                    <button onclick="closeBackupModal()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <p class="text-xs text-slate-400 leading-relaxed">瀏覽器會依「網址」分開存資料，換網址就看不到舊進度。在舊網址按「產生備份碼」複製起來，到新網址貼上再按「匯入」即可搬家。備份內容包含成就、速通紀錄、統計、本機排行榜、名稱、紙條密碼，以及線上排行榜的身分（匯入後仍是同一位玩家）。</p>
+                <textarea id="backup-text" rows="6" placeholder="備份碼會顯示在這裡；要還原時請貼在這裡" class="w-full bg-slate-900 border border-slate-700 focus:border-violet-400 outline-none rounded-xl p-3 text-[11px] text-slate-200 font-mono placeholder-slate-600 resize-none"></textarea>
+                <div class="flex gap-2">
+                    <button onclick="exportProgress()" class="flex-1 py-2.5 bg-violet-600 hover:bg-violet-500 font-bold text-white rounded-xl text-xs sm:text-sm">產生備份碼</button>
+                    <button onclick="copyBackup()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 font-bold text-slate-100 rounded-xl text-xs sm:text-sm">複製</button>
+                    <button onclick="importProgress()" class="flex-1 py-2.5 bg-amber-600 hover:bg-amber-500 font-bold text-slate-950 rounded-xl text-xs sm:text-sm">匯入並覆蓋</button>
+                </div>
+                <p id="backup-msg" class="text-xs min-h-[1rem]"></p>
+                <div class="flex-1"></div>
+                <button onclick="closeBackupModal()" class="py-3 bg-slate-800 hover:bg-slate-700 font-bold text-slate-200 rounded-xl transition text-sm">關閉</button>
+            </div>
+
+            <!-- STATS MODAL -->
+            <div id="stats-modal" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md z-50 p-5 sm:p-6 flex flex-col space-y-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-black text-cyan-300 flex items-center gap-2"><i class="fa-solid fa-chart-simple"></i> 遊玩統計</h3>
+                    <button onclick="closeStatsModal()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="bg-slate-900 border border-cyan-500/40 rounded-xl p-4 text-center">
+                    <div class="text-[11px] text-slate-400 font-bold">累計遊玩時間</div>
+                    <div id="stat-time" class="text-2xl font-black text-cyan-300 mt-1">0 秒</div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 text-center">
+                        <div class="text-[11px] text-slate-400 font-bold">累計作答題數</div>
+                        <div id="stat-answered" class="text-2xl font-black text-amber-300 mt-1">0</div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 text-center">
+                        <div class="text-[11px] text-slate-400 font-bold">正確率</div>
+                        <div id="stat-accuracy" class="text-2xl font-black text-emerald-300 mt-1">--</div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 text-center">
+                        <div class="text-[11px] text-slate-400 font-bold">答對</div>
+                        <div id="stat-correct" class="text-xl font-black text-emerald-400 mt-1">0</div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 text-center">
+                        <div class="text-[11px] text-slate-400 font-bold">答錯 / 超時</div>
+                        <div id="stat-wrong" class="text-xl font-black text-red-400 mt-1">0</div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 text-center">
+                        <div class="text-[11px] text-slate-400 font-bold">挑戰場次</div>
+                        <div id="stat-battles" class="text-xl font-black text-slate-100 mt-1">0</div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 text-center">
+                        <div class="text-[11px] text-slate-400 font-bold">通關次數</div>
+                        <div id="stat-wins" class="text-xl font-black text-slate-100 mt-1">0</div>
+                    </div>
+                </div>
+                <p class="text-[11px] text-slate-500 text-center">遊玩時間只計算停留在戰鬥畫面的時間；統計保存在這個瀏覽器。</p>
+                <div class="flex-1"></div>
+                <button onclick="closeStatsModal()" class="py-3 bg-slate-800 hover:bg-slate-700 font-bold text-slate-200 rounded-xl transition text-sm">關閉</button>
+            </div>
+
+            <!-- LEADERBOARD MODAL -->
+            <div id="leaderboard-modal" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md z-50 p-4 sm:p-6 flex flex-col space-y-3">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-black text-amber-300 flex items-center gap-2"><i class="fa-solid fa-ranking-star"></i> 勇者排行榜</h3>
+                    <button onclick="closeLeaderboardModal()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div id="lb-scope" class="flex gap-1.5 text-[11px]"></div>
+                <div id="lb-tabs" class="flex flex-wrap gap-1.5"></div>
+                <div class="flex items-center justify-between gap-2 text-[11px]">
+                    <div class="flex gap-1.5">
+                        <button id="lb-sort-score" onclick="setLeaderboardSort('score')" class="px-3 py-1 rounded-full border font-bold">依分數</button>
+                        <button id="lb-sort-time" onclick="setLeaderboardSort('time')" class="px-3 py-1 rounded-full border font-bold">依通關時間</button>
+                    </div>
+                    <span id="lb-note" class="text-slate-500"></span>
+                </div>
+                <div id="lb-list" class="flex-1 overflow-y-auto space-y-1.5 pr-1"></div>
+                <details id="lb-settings" class="text-[11px] text-slate-400">
+                    <summary class="cursor-pointer select-none">⚙ 線上排行榜設定</summary>
+                    <div class="flex gap-2 mt-2">
+                        <input id="lb-url-input" type="text" autocomplete="off" placeholder="https://xxxx-default-rtdb.firebaseio.com" class="flex-1 min-w-0 bg-slate-900 border border-slate-700 focus:border-amber-400 outline-none rounded-lg px-2 py-1.5 text-slate-200 placeholder-slate-600">
+                        <button onclick="saveOnlineUrl()" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold">儲存</button>
+                        <button onclick="testOnlineConnection()" class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-100 font-bold">測試</button>
+                    </div>
+                    <p id="lb-test-result" class="mt-2"></p>
+                </details>
+                <button onclick="closeLeaderboardModal()" class="py-3 bg-slate-800 hover:bg-slate-700 font-bold text-slate-200 rounded-xl transition text-sm">關閉</button>
+            </div>
+
+            <!-- PASSCODE INPUT MODAL -->
+            <div id="passcode-modal" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md z-50 p-6 flex flex-col items-center justify-center space-y-4">
+                <div class="w-16 h-16 rounded-full bg-purple-950/80 border-2 border-purple-500 flex items-center justify-center text-purple-400 text-2xl shadow-xl">
+                    <i class="fa-solid fa-key"></i>
+                </div>
+                <div class="text-center space-y-1">
+                    <h3 class="text-2xl font-black text-white">輸入神秘紙條 4 位數密碼</h3>
+                    <p class="text-xs text-slate-400">提示：在地獄模式擊敗【無限神龍】有 50% 機率掉落</p>
+                </div>
+                <div class="w-full max-w-xs space-y-3">
+                    <input type="text" id="passcode-input" maxlength="4" placeholder="0000" class="w-full text-center text-3xl font-mono tracking-widest py-3 bg-slate-900 border-2 border-purple-500/50 rounded-xl text-amber-300 focus:outline-none focus:border-amber-400">
+                    <div class="flex gap-2">
+                        <button onclick="submitPasscode()" class="flex-1 py-3 bg-purple-600 hover:bg-purple-500 font-bold text-white rounded-xl shadow-lg transition">解鎖隱藏關卡</button>
+                        <button onclick="closePasscodeModal()" class="px-4 py-3 bg-slate-800 hover:bg-slate-700 font-bold text-slate-300 rounded-xl transition">取消</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LOOT DROP MODAL -->
+            <div id="loot-modal" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md z-50 p-6 flex flex-col items-center justify-center space-y-4 animate-shake">
+                <div class="w-20 h-20 rounded-2xl bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center text-amber-400 text-4xl shadow-2xl animate-pulse">
+                    <i class="fa-solid fa-scroll"></i>
+                </div>
+                <div class="text-center space-y-2">
+                    <span class="text-xs font-bold bg-amber-950 text-amber-300 px-3 py-1 rounded-full border border-amber-500/50">傳說戰利品掉落！</span>
+                    <h3 class="text-2xl font-black text-amber-300">獲得【刻有古老符文的紙條】</h3>
+                    <p class="text-xs text-slate-400">這張紙條散發著創世時期的封印力量...</p>
+                </div>
+                <div class="bg-slate-900 border-2 border-amber-500/60 p-4 rounded-xl text-center space-y-1 w-full max-w-xs">
+                    <span class="text-[10px] text-slate-400 uppercase tracking-widest block font-bold">4位數解鎖密碼</span>
+                    <span id="loot-passcode-text" class="text-4xl font-black font-mono text-amber-400 tracking-widest block my-1">????</span>
+                    <span class="text-[10px] text-emerald-400">已自動記錄！可在右上角 [🔒 ???] 輸入</span>
+                </div>
+                <button onclick="closeLootModal()" class="w-full max-w-xs py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl shadow-lg transition">收下紙條並繼續</button>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        // GAME STATE
+        const gameState = {
+            diff: 'easy',
+            equippedTitle: localStorage.getItem('math_rpg_equipped_title') || '初級冒險者',
+            playerHp: 100,
+            playerMaxHp: 100,
+            playerMp: 0,
+            bossHp: 100,
+            bossMaxHp: 100,
+            bossShield: 0,
+            isPhase2: false,
+            score: 0,
+            combo: 0,
+            maxCombo: 0,
+            correctCount: 0,
+            wrongCount: 0,
+            skillsUsedCount: 0,
+            isBerserk: false,
+            isShieldActive: false,
+            currentQ: null,
+            timerInterval: null,
+            timerLeft: 10,
+            timerMax: 10,
+            battleStartTime: 0,
+            battleElapsedTime: 0,
+            battleTimerInterval: null,
+            mistakeLog: [],
+            isMistakePracticeMode: false,
+            secretUnlocked: false,
+            secretPasscode: getSecretPasscode(),
+            unlockedAchievements: JSON.parse(localStorage.getItem('math_rpg_achievements') || '[]'),
+            bestTimes: JSON.parse(localStorage.getItem('math_rpg_best_times') || '{}')
+        };
+
+        function equipTitle(titleName, silent = false) {
+            gameState.equippedTitle = titleName;
+            localStorage.setItem('math_rpg_equipped_title', titleName);
+            updateEquippedTitleUI();
+            renderAchievementsList();
+            sound.play('skill');
+            if (!silent) showNotice(`已佩戴稱號【${titleName}】`);
+        }
+
+        function updateEquippedTitleUI() {
+            const t = gameState.equippedTitle;
+            const elements = ['header-title-text', 'start-title-text', 'hud-title-text', 'end-title-text'];
+            elements.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerText = t;
+            });
+        }
+
+        // BOSS CONFIGURATION
+        const BOSS_DATA = {
+            easy: { name: "綠史萊姆王", hp: 120, timeMax: 10, shield: 0, icon: "fa-ghost", color: "text-emerald-400" },
+            medium: { name: "影之赤龍", hp: 220, timeMax: 8, shield: 0, icon: "fa-dragon", color: "text-amber-400" },
+            hard: { name: "數理魔皇", hp: 380, timeMax: 6.5, shield: 0, icon: "fa-skull", color: "text-red-400" },
+            nightmare: { name: "虛空主宰", hp: 550, timeMax: 5.5, shield: 2, icon: "fa-eye", color: "text-purple-400" },
+            hell: { name: "無限神龍", hp: 800, timeMax: 5, shield: 3, icon: "fa-meteor", color: "text-fuchsia-400" },
+            genesis: { name: "創世 / 混沌奇點", hp: 1200, timeMax: 4.5, shield: 4, icon: "fa-atom", color: "text-yellow-300" }
+        };
+
+        // ACHIEVEMENTS
+        const ACHIEVEMENTS = [
+            { id: 'first_blood', title: '初出茅廬', desc: '答對第 1 道數學謎題', reward: '分數 +5%', icon: 'fa-wand-magic-sparkles' },
+            { id: 'win_easy', title: '史萊姆討伐者', desc: '擊敗簡單難度 [綠史萊姆王]', reward: '稱號：算術新星', icon: 'fa-shield-cat' },
+            { id: 'win_hard', title: '數理大師', desc: '擊敗困難或噩夢難度 BOSS', reward: '稱號：邏輯魔導士', icon: 'fa-crown' },
+            { id: 'win_hell', title: '討伐神龍', desc: '擊敗地獄難度 [無限神龍]', reward: '稱號：神龍征服者', icon: 'fa-dragon' },
+            { id: 'win_genesis', title: '創世神仙', desc: '擊敗隱藏難度 [創世 / 混沌奇點]', reward: '稱號：真理之神', icon: 'fa-atom' },
+            { id: 'combo_10', title: '心流領域', desc: '達成 10 連擊 (10x Combo)', reward: '暴擊率提升', icon: 'fa-fire' },
+            { id: 'fast_answer', title: '電光石火', desc: '在 2.5 秒內極速答對題目', reward: '稱號：閃電腦袋', icon: 'fa-bolt' },
+            { id: 'clutch_win', title: '九死一生', desc: '勇者 HP 低於 20% 反敗為勝', reward: '稱號：不屈勇者', icon: 'fa-heart-crack' },
+            { id: 'skill_master', title: '大魔法師', desc: '單局戰鬥中施放 5 次技能', reward: 'MP 恢復加速', icon: 'fa-hat-wizard' },
+            { id: 'practice_master', title: '勤能補拙', desc: '完成一次錯題專攻特訓', reward: '稱號：學霸勇者', icon: 'fa-graduation-cap' },
+            { id: 'secret_unlocked', title: '真理尋覓者', desc: '成功解鎖隱藏 [創世難度]', reward: '解鎖秘境權限', icon: 'fa-key' }
+        ];
+
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+            play(type) {
+                if (!this.enabled) return;
+                try {
+                    this.init();
+                    if (this.ctx.state === 'suspended') this.ctx.resume();
+                    const now = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+
+                    if (type === 'correct') {
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(523.25, now);
+                        osc.frequency.exponentialRampToValueAtTime(880, now + 0.15);
+                        gain.gain.setValueAtTime(0.3, now);
+                        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                        osc.start(now);
+                        osc.stop(now + 0.2);
+                    } else if (type === 'wrong') {
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(220, now);
+                        osc.frequency.setValueAtTime(110, now + 0.1);
+                        gain.gain.setValueAtTime(0.4, now);
+                        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                        osc.start(now);
+                        osc.stop(now + 0.3);
+                    } else if (type === 'skill') {
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(300, now);
+                        osc.frequency.exponentialRampToValueAtTime(1200, now + 0.25);
+                        gain.gain.setValueAtTime(0.3, now);
+                        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                        osc.start(now);
+                        osc.stop(now + 0.3);
+                    } else if (type === 'achievement') {
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(440, now);
+                        osc.frequency.setValueAtTime(554.37, now + 0.1);
+                        osc.frequency.setValueAtTime(659.25, now + 0.2);
+                        gain.gain.setValueAtTime(0.3, now);
+                        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                        osc.start(now);
+                        osc.stop(now + 0.4);
+                    } else if (type === 'hit') {
+                        osc.type = 'square';
+                        osc.frequency.setValueAtTime(150, now);
+                        osc.frequency.exponentialRampToValueAtTime(40, now + 0.15);
+                        gain.gain.setValueAtTime(0.3, now);
+                        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                        osc.start(now);
+                        osc.stop(now + 0.15);
+                    }
+                } catch(e) {}
+            }
+        }
+        const sound = new SoundEngine();
+
+        // MATH HELPERS
+        function randInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function shuffle(arr) {
+            return arr.sort(() => Math.random() - 0.5);
+        }
+
+        function gcd(a, b) {
+            return b === 0 ? Math.abs(a) : gcd(b, a % b);
+        }
+
+        // 依題型產生「符合題意」的錯誤選項
+        function isSquareFree(n) {
+            for (let f = 2; f * f <= n; f++) if (n % (f * f) === 0) return false;
+            return true;
+        }
+
+        function buildDistractors(qText, correctAns) {
+            let cands = [];
+            let m;
+            const fracFmt = (n, d) => { const g = gcd(n, d); n /= g; d /= g; return d === 1 ? `${n}` : `${n}/${d}`; };
+            const polyFmt = (c, e) => e === 1 ? `${c}x` : e === 0 ? `${c}` : `${c}x^${e}`;
+            const cplxFmt = (re, im) => `${re} ${im >= 0 ? `+ ${im}i` : `- ${Math.abs(im)}i`}`;
+
+            if ((m = qText.match(/^(\d+)\/(\d+) \+ (\d+)\/(\d+) = \?$/))) {
+                const n1 = +m[1], d = +m[2], n2 = +m[3], s = n1 + n2;
+                cands = [fracFmt(s, 2 * d), fracFmt(n1 * n2, d * d), fracFmt(s + 1, d), fracFmt(s - 1, d),
+                         fracFmt(s, d + 1), fracFmt(s, d - 1), fracFmt(s + 2, d), fracFmt(n1 * n2, d)];
+            } else if (qText.startsWith('三角函數數值')) {
+                cands = ['0', '1/2', '1', '-1', '√2/2', '√3/2', '√3/3', '√3'];
+            } else if (qText.includes('歐拉公式')) {
+                cands = ['-1', '1', '2', 'i'];
+            } else if ((m = qText.match(/(\d+) mod (\d+)/))) {
+                for (let i = 0; i < +m[2]; i++) cands.push(`${i}`);
+            } else if (qText.startsWith('求 log_')) {
+                for (let i = 1; i <= 7; i++) cands.push(`${i}`);
+            } else if (/^x = /.test(correctAns)) {
+                const x = parseInt(correctAns.slice(4), 10);
+                for (let d = -4; d <= 5; d++) if (d !== 0 && x + d > 0) cands.push(`x = ${x + d}`);
+            } else if ((m = correctAns.match(/^(\d+) 或 (\d+)$/))) {
+                const r1 = +m[1], r2 = +m[2];
+                const key = (a, b) => [a, b].sort((u, v) => u - v).join(',');
+                const ck = key(r1, r2);
+                [[r1 + 1, r2], [r1, r2 + 1], [r1 - 1, r2], [r1, r2 - 1], [r1 + 1, r2 + 1], [r1 + 2, r2], [r1, r2 + 2], [r1 - 1, r2 + 1]]
+                    .forEach(([a, b]) => {
+                        if (a >= 1 && b >= 1 && key(a, b) !== ck && (a !== b || r1 === r2)) cands.push(Math.random() < 0.5 ? `${a} 或 ${b}` : `${b} 或 ${a}`);
+                    });
+            } else if ((m = correctAns.match(/^(\d+)√(\d+)$/))) {
+                const k = +m[1], p = +m[2];
+                [[k + 1, p], [k - 1, p], [k, p + 1], [k, p - 1], [p, k], [k + 2, p], [k, p + 2], [k + 1, p + 1]]
+                    .forEach(([a, b]) => { if (a >= 2 && b >= 2 && !(a === k && b === p) && isSquareFree(b)) cands.push(`${a}√${b}`); });
+            } else if (/^\$/.test(correctAns) && (m = qText.match(/\$(\d+) 的商品打 (\d+) 折/))) {
+                const o = +m[1], d = +m[2];
+                cands = [o * (10 - d) / 10, o * (d + 1) / 10, o * (d - 1) / 10, o * d / 100, o - d].map(v => `$${v}`);
+            } else if ((m = qText.match(/f\(x\) = (\d+)x\^(\d+)/))) {
+                const a = +m[1], n = +m[2];
+                cands = [polyFmt(a, n - 1), polyFmt(a * n, n), polyFmt(n, n - 1), polyFmt(a * n, n - 2),
+                         polyFmt(a * (n - 1), n - 2), polyFmt(a * n, n + 1), polyFmt(a * n + a, n - 1)];
+            } else if ((m = qText.match(/\((\d+) \+ (\d+)i\) × \((\d+) \+ (\d+)i\)/))) {
+                const a = +m[1], b = +m[2], c = +m[3], d = +m[4];
+                cands = [cplxFmt(a * c + b * d, a * d + b * c), cplxFmt(a * c - b * d, a * d - b * c),
+                         cplxFmt(a * c + b * d, a * d - b * c), cplxFmt(a * c, a * d + b * c),
+                         cplxFmt(a * c - b * d, a * c + b * d), cplxFmt(a * c - b * d, a * d + b * c + 1),
+                         cplxFmt(a * c - b * d + 1, a * d + b * c)];
+            } else if (!isNaN(correctAns)) {
+                const val = parseFloat(correctAns);
+                for (let d = -5; d <= 8; d++) {
+                    if (d === 0) continue;
+                    const f = val + d;
+                    if (val > 0 && f <= 0) continue;
+                    cands.push(`${f}`);
+                }
+            }
+
+            const uniq = [...new Set(cands)].filter(c => c !== correctAns);
+            const picked = shuffle(uniq).slice(0, 3);
+            // 保險：若候選不足，以數字微調補滿
+            let guard = 0;
+            while (picked.length < 3 && guard++ < 100) {
+                const v = parseFloat(correctAns);
+                const f = isNaN(v) ? `${randInt(1, 15)}` : `${v + randInt(1, 9)}`;
+                if (f !== correctAns && !picked.includes(f)) picked.push(f);
+            }
+            return picked;
+        }
+
+        // ---- LaTeX 輔助：以 § 作為行內公式分隔符號 ----
+        function texOpt(str) {
+            let t = String(str), m;
+            if ((m = t.match(/^(-?)(√?\d+)\/(\d+)$/))) {
+                const num = m[2].replace(/√(\d+)/, '\\sqrt{$1}');
+                return `${m[1]}\\frac{${num}}{${m[3]}}`;
+            }
+            t = t.replace(/√(\d+)/g, '\\sqrt{$1}');
+            t = t.replace(' 或 ', ' \\text{ 或 } ');
+            t = t.replace(/^\$/, () => '\\$');
+            t = t.replace(/\^(\d+)/g, '^{$1}');
+            return t;
+        }
+        const tex = str => `§${texOpt(str)}§`;
+
+        function renderMath(el) {
+            if (!el) return;
+            if (window.renderMathInElement) {
+                try {
+                    window.renderMathInElement(el, {
+                        delimiters: [{ left: '§', right: '§', display: false }],
+                        throwOnError: false,
+                        strict: false
+                    });
+                } catch (e) { console.warn('KaTeX render failed', e); }
+            }
+        }
+
+        // ---- 題庫：每個難度 15 題 [題目, 正解, 錯誤1, 錯誤2, 錯誤3, 解析]（選項為 LaTeX） ----
+        const QUESTION_BANK = {
+            easy: [
+                ["小明有 §48§ 顆糖，吃掉 §19§ 顆，還剩幾顆？", "29", "31", "27", "67", "§48 - 19 = 29§"],
+                ["一盒雞蛋有 §12§ 顆，§7§ 盒共有幾顆？", "84", "72", "82", "19", "§12 \\times 7 = 84§"],
+                ["§144 \\div 12 = ?§", "12", "14", "16", "11", "§12 \\times 12 = 144§，故答案為 §12§"],
+                ["§100 - 37 = ?§", "63", "67", "73", "53", "§100 - 37 = 63§"],
+                ["§5^{3} = ?§", "125", "15", "25", "75", "§5^{3} = 5 \\times 5 \\times 5 = 125§"],
+                ["§25 \\times 4 = ?§", "100", "90", "110", "104", "§25 \\times 4 = 100§"],
+                ["§36 + 47 + 17 = ?§", "100", "90", "98", "101", "§36 + 47 = 83§，§83 + 17 = 100§"],
+                ["正方形邊長 §9§，周長是多少？", "36", "18", "81", "45", "周長 = 邊長 × 4 = §9 \\times 4 = 36§"],
+                ["§3 + 4 \\times 5 = ?§", "23", "35", "27", "29", "先乘後加：§4 \\times 5 = 20§，§3 + 20 = 23§"],
+                ["§200 \\div 8 = ?§", "25", "20", "24", "35", "§8 \\times 25 = 200§"],
+                ["§15 \\times 15 = ?§", "225", "215", "235", "250", "§15^{2} = 225§"],
+                ["下列哪個數是質數？", "17", "21", "27", "39", "§21 = 3 \\times 7§，§27 = 3 \\times 9§，§39 = 3 \\times 13§，只有 §17§ 是質數"],
+                ["§\\sqrt{81} = ?§", "9", "8", "18", "27", "§9 \\times 9 = 81§，故 §\\sqrt{81} = 9§"],
+                ["§86§ 的 §50\\%§ 是多少？", "43", "46", "53", "36", "§86 \\times 0.5 = 43§"],
+                ["§1000 - 458 = ?§", "542", "552", "642", "532", "§1000 - 458 = 542§"]
+            ],
+            medium: [
+                ["§\\frac{1}{2} + \\frac{1}{3} = ?§", "\\frac{5}{6}", "\\frac{2}{5}", "\\frac{1}{6}", "\\frac{3}{5}", "通分：§\\frac{3}{6} + \\frac{2}{6} = \\frac{5}{6}§"],
+                ["§\\frac{3}{4} \\times \\frac{2}{9} = ?§", "\\frac{1}{6}", "\\frac{1}{3}", "\\frac{5}{13}", "\\frac{6}{13}", "§\\frac{3 \\times 2}{4 \\times 9} = \\frac{6}{36} = \\frac{1}{6}§"],
+                ["解 §2x - 7 = 15§", "x = 11", "x = 4", "x = 22", "x = 7", "§2x = 22§，§x = 11§"],
+                ["圓半徑 §5§，面積為？（以 §\\pi§ 表示）", "25\\pi", "10\\pi", "5\\pi", "50\\pi", "§\\pi r^{2} = \\pi \\times 5^{2} = 25\\pi§"],
+                ["三角形底 §10§、高 §6§，面積為？", "30", "60", "16", "32", "面積 = 底 × 高 ÷ 2 = §10 \\times 6 \\div 2 = 30§"],
+                ["§(-3) \\times (-4) + 5 = ?§", "17", "-7", "7", "-17", "負負得正：§12 + 5 = 17§"],
+                ["§2^{5} - 3^{2} = ?§", "23", "1", "7", "13", "§32 - 9 = 23§"],
+                ["商品 §300§ 元漲價 §20\\%§，新價為？", "360", "320", "330", "380", "§300 \\times 1.2 = 360§"],
+                ["§\\frac{7}{8} - \\frac{1}{4} = ?§", "\\frac{5}{8}", "\\frac{3}{4}", "\\frac{6}{4}", "\\frac{1}{2}", "通分：§\\frac{7}{8} - \\frac{2}{8} = \\frac{5}{8}§"],
+                ["解 §3(x + 2) = 21§", "x = 5", "x = 7", "x = 9", "x = 3", "§x + 2 = 7§，§x = 5§"],
+                ["§12, 15, 18, 23, 7§ 的平均數為？", "15", "14", "16", "18", "總和 §75§，§75 \\div 5 = 15§"],
+                ["§0.25 \\times 48 = ?§", "12", "24", "14", "10", "§0.25 = \\frac{1}{4}§，§48 \\div 4 = 12§"],
+                ["長方形周長 §30§、寬 §5§，長為？", "10", "25", "15", "6", "長 + 寬 = §15§，長 = §15 - 5 = 10§"],
+                ["§\\frac{2}{5}§ 換成百分數是？", "40\\%", "25\\%", "20\\%", "45\\%", "§\\frac{2}{5} = 0.4 = 40\\%§"],
+                ["解 §x + 3 = 2x - 4§", "x = 7", "x = 1", "x = 5", "x = 10", "移項：§3 + 4 = 2x - x§，§x = 7§"]
+            ],
+            hard: [
+                ["解 §x^{2} - 9 = 0§", "x = \\pm 3", "x = 3", "x = 9", "x = \\pm 9", "§x^{2} = 9§，§x = \\pm 3§"],
+                ["§x^{2} + 5x + 6 = 0§ 的兩根為？", "-2 \\text{ 或 } -3", "2 \\text{ 或 } 3", "-1 \\text{ 或 } -6", "1 \\text{ 或 } 6", "§(x + 2)(x + 3) = 0§"],
+                ["等比數列 §2, 6, 18, \\dots§ 的第 §5§ 項為？", "162", "54", "486", "90", "§a_n = 2 \\times 3^{n-1}§，§a_5 = 2 \\times 81 = 162§"],
+                ["§(x + 3)^{2}§ 展開為？", "x^{2} + 6x + 9", "x^{2} + 9", "x^{2} + 3x + 9", "x^{2} + 6x + 6", "§(a+b)^{2} = a^{2} + 2ab + b^{2}§"],
+                ["§12§ 與 §18§ 的最小公倍數為？", "36", "6", "72", "54", "§12 = 2^{2} \\times 3§，§18 = 2 \\times 3^{2}§，LCM = §2^{2} \\times 3^{2} = 36§"],
+                ["解 §|x - 4| = 7§", "x = 11 \\text{ 或 } -3", "x = 11", "x = 3 \\text{ 或 } -11", "x = 11 \\text{ 或 } 3", "§x - 4 = 7§ 或 §x - 4 = -7§，得 §x = 11§ 或 §x = -3§"],
+                ["等差數列首項 §5§、公差 §4§，前 §10§ 項和為？", "230", "225", "190", "460", "§a_{10} = 41§，§S_{10} = \\frac{10(5 + 41)}{2} = 230§"],
+                ["商品原價 §800§，先打 §8§ 折再折讓 §100§ 元，售價為？", "540", "640", "700", "560", "§800 \\times 0.8 = 640§，§640 - 100 = 540§"],
+                ["§x^{2} - 6x + 9 = 0§ 的實數解為？", "x = 3", "x = \\pm 3", "x = -3", "x = 9", "§(x - 3)^{2} = 0§，故 §x = 3§"],
+                ["§2^{x} = 64§，求 §x§", "6", "5", "7", "8", "§64 = 2^{6}§"],
+                ["不等式 §3x - 5 > 10§ 的解為？", "x > 5", "x < 5", "x > 15", "x > 3", "§3x > 15§，§x > 5§"],
+                ["化簡 §\\sqrt{12} + \\sqrt{27}§", "5\\sqrt{3}", "\\sqrt{39}", "6\\sqrt{3}", "5\\sqrt{6}", "§2\\sqrt{3} + 3\\sqrt{3} = 5\\sqrt{3}§"],
+                ["連續三個整數的和為 §72§，最大的數為？", "25", "24", "26", "23", "三數為 §23, 24, 25§"],
+                ["解 §\\frac{x}{3} + \\frac{x}{6} = 9§", "x = 18", "x = 27", "x = 9", "x = 12", "§\\frac{2x + x}{6} = \\frac{x}{2} = 9§，§x = 18§"],
+                ["座標 §(1, 2)§ 與 §(4, 6)§ 的距離為？", "5", "7", "25", "4", "§\\sqrt{3^{2} + 4^{2}} = \\sqrt{25} = 5§"]
+            ],
+            nightmare: [
+                ["§\\log_{2} 8 + \\log_{2} 4 = ?§", "5", "6", "7", "32", "§3 + 2 = 5§"],
+                ["§\\begin{vmatrix} 2 & 3 \\\\ 4 & 5 \\end{vmatrix} = ?§", "-2", "2", "22", "10", "§2 \\times 5 - 3 \\times 4 = 10 - 12 = -2§"],
+                ["§\\sqrt{50} + \\sqrt{18} = ?§", "8\\sqrt{2}", "2\\sqrt{17}", "15\\sqrt{2}", "8", "§5\\sqrt{2} + 3\\sqrt{2} = 8\\sqrt{2}§"],
+                ["§(\\sqrt{3} + 1)(\\sqrt{3} - 1) = ?§", "2", "4", "3", "2\\sqrt{3}", "平方差：§(\\sqrt{3})^{2} - 1^{2} = 3 - 1 = 2§"],
+                ["直角三角形一股 §7§、斜邊 §25§，另一股為？", "24", "18", "26", "32", "§\\sqrt{25^{2} - 7^{2}} = \\sqrt{576} = 24§"],
+                ["正六邊形的內角和為？", "720^\\circ", "540^\\circ", "360^\\circ", "1080^\\circ", "§(6 - 2) \\times 180^\\circ = 720^\\circ§"],
+                ["解 §x^{2} - 5x - 6 = 0§", "6 \\text{ 或 } -1", "-6 \\text{ 或 } 1", "2 \\text{ 或 } 3", "5 \\text{ 或 } 6", "§(x - 6)(x + 1) = 0§"],
+                ["§\\log 1000 = ?§（常用對數）", "3", "2", "10", "100", "§10^{3} = 1000§"],
+                ["將 §\\frac{1}{\\sqrt{2}}§ 有理化", "\\frac{\\sqrt{2}}{2}", "\\frac{1}{2}", "\\sqrt{2}", "\\frac{\\sqrt{2}}{4}", "分子分母同乘 §\\sqrt{2}§：§\\frac{\\sqrt{2}}{2}§"],
+                ["§P(5, 2) = ?§", "20", "10", "25", "60", "§5 \\times 4 = 20§"],
+                ["方程組 §x + y = 10§、§x - y = 4§，求 §x§", "7", "3", "6", "14", "兩式相加：§2x = 14§，§x = 7§"],
+                ["圓 §x^{2} + y^{2} = 49§ 的半徑為？", "7", "49", "14", "3.5", "§r^{2} = 49§，§r = 7§"],
+                ["向量 §(3, 4)§ 的長度為？", "5", "7", "12", "25", "§\\sqrt{3^{2} + 4^{2}} = 5§"],
+                ["拋物線 §y = x^{2} - 4x + 3§ 的頂點為？", "(2, -1)", "(2, 1)", "(-2, -1)", "(4, 3)", "§x = -\\frac{b}{2a} = 2§，§y = 4 - 8 + 3 = -1§"],
+                ["§(2 + i)(2 - i) = ?§", "5", "3", "4", "5i", "§4 - i^{2} = 4 + 1 = 5§"]
+            ],
+            hell: [
+                ["§\\lim_{x \\to 0} \\frac{\\sin x}{x} = ?§", "1", "0", "\\infty", "-1", "重要極限：§\\lim_{x \\to 0} \\frac{\\sin x}{x} = 1§"],
+                ["§\\lim_{x \\to \\infty} \\frac{3x^{2} + 1}{x^{2} - 5} = ?§", "3", "0", "1", "\\infty", "同次項係數比：§\\frac{3}{1} = 3§"],
+                ["§\\binom{10}{3} = ?§", "120", "720", "30", "90", "§\\frac{10 \\times 9 \\times 8}{3 \\times 2 \\times 1} = 120§"],
+                ["§7^{100} \\bmod 5 = ?§", "1", "0", "2", "4", "§7 \\equiv 2 \\pmod 5§，§2^{4} = 16 \\equiv 1§，故 §2^{100} \\equiv 1§"],
+                ["§\\sin 150^\\circ = ?§", "\\frac{1}{2}", "\\frac{\\sqrt{3}}{2}", "-\\frac{1}{2}", "0", "§\\sin 150^\\circ = \\sin 30^\\circ = \\frac{1}{2}§"],
+                ["§\\cos 120^\\circ = ?§", "-\\frac{1}{2}", "\\frac{1}{2}", "-\\frac{\\sqrt{3}}{2}", "\\frac{\\sqrt{3}}{2}", "§\\cos 120^\\circ = -\\cos 60^\\circ = -\\frac{1}{2}§"],
+                ["§\\frac{5!}{3!} = ?§", "20", "2", "60", "120", "§5 \\times 4 = 20§"],
+                ["§\\lim_{x \\to 1} \\frac{x^{3} - 1}{x - 1} = ?§", "3", "0", "1", "2", "§\\frac{(x-1)(x^{2}+x+1)}{x-1} = x^{2}+x+1 \\to 3§"],
+                ["§e^{0} + \\ln 1 = ?§", "1", "0", "2", "e", "§1 + 0 = 1§"],
+                ["擲兩顆公正骰子，點數和為 §7§ 的機率？", "\\frac{1}{6}", "\\frac{1}{12}", "\\frac{1}{36}", "\\frac{7}{36}", "共 §6§ 種組合，§\\frac{6}{36} = \\frac{1}{6}§"],
+                ["§\\tan 60^\\circ = ?§", "\\sqrt{3}", "\\frac{\\sqrt{3}}{3}", "1", "\\frac{\\sqrt{3}}{2}", "§\\tan 60^\\circ = \\sqrt{3}§"],
+                ["§\\sum_{k=1}^{10} k = ?§", "55", "45", "50", "66", "§\\frac{10 \\times 11}{2} = 55§"],
+                ["§2^{10} \\bmod 7 = ?§", "2", "1", "3", "4", "§2^{3} \\equiv 1§，§2^{10} = 2^{9} \\times 2 \\equiv 2§"],
+                ["§\\ln e^{3} = ?§", "3", "e^{3}", "1", "\\frac{1}{3}", "§\\ln e^{3} = 3 \\ln e = 3§"],
+                ["從 §5§ 人選出正、副會長各一人（有順序），共幾種？", "20", "10", "25", "60", "§5 \\times 4 = 20§"]
+            ],
+            genesis: [
+                ["§\\frac{d}{dx}(\\sin x) = ?§", "\\cos x", "-\\cos x", "\\sin x", "-\\sin x", "§(\\sin x)' = \\cos x§"],
+                ["§\\frac{d}{dx}(e^{2x}) = ?§", "2e^{2x}", "e^{2x}", "2e^{x}", "\\frac{e^{2x}}{2}", "連鎖律：§e^{2x} \\cdot 2§"],
+                ["§\\int 2x \\, dx = ?§", "x^{2} + C", "2x^{2} + C", "x + C", "\\frac{x^{2}}{2} + C", "§\\int 2x\\,dx = x^{2} + C§"],
+                ["§\\int_{0}^{1} x^{2}\\,dx = ?§", "\\frac{1}{3}", "\\frac{1}{2}", "1", "\\frac{2}{3}", "§\\left[\\frac{x^{3}}{3}\\right]_{0}^{1} = \\frac{1}{3}§"],
+                ["§\\frac{d}{dx}(\\ln x) = ?§", "\\frac{1}{x}", "x", "\\ln x", "-\\frac{1}{x^{2}}", "§(\\ln x)' = \\frac{1}{x}§"],
+                ["§i^{2025} = ?§", "i", "1", "-1", "-i", "§i^{4} = 1§，§2025 = 4 \\times 506 + 1§，故 §i^{2025} = i§"],
+                ["§|3 + 4i| = ?§", "5", "7", "25", "\\sqrt{7}", "§\\sqrt{3^{2} + 4^{2}} = 5§"],
+                ["§\\lim_{x \\to \\infty} \\left(1 + \\frac{1}{x}\\right)^{x} = ?§", "e", "1", "\\infty", "0", "自然對數底 §e§ 的定義"],
+                ["§\\frac{d}{dx}(x^{2}\\sin x) = ?§", "2x\\sin x + x^{2}\\cos x", "2x\\cos x", "2x\\sin x - x^{2}\\cos x", "x^{2}\\cos x", "乘法法則：§(uv)' = u'v + uv'§"],
+                ["§\\int_{0}^{\\pi} \\sin x\\,dx = ?§", "2", "0", "1", "-2", "§\\left[-\\cos x\\right]_{0}^{\\pi} = 1 + 1 = 2§"],
+                ["§e^{i\\pi/2} = ?§", "i", "1", "-1", "-i", "§\\cos\\frac{\\pi}{2} + i\\sin\\frac{\\pi}{2} = 0 + i§"],
+                ["§f(x) = x^{3} - 3x§ 的極小值發生在？", "x = 1", "x = -1", "x = 0", "x = 3", "§f'(x) = 3x^{2} - 3 = 0§，§x = \\pm 1§；§f''(1) = 6 > 0§，故 §x = 1§ 為極小"],
+                ["§\\sum_{n=0}^{\\infty} \\left(\\frac{1}{2}\\right)^{n} = ?§", "2", "1", "\\frac{1}{2}", "\\infty", "等比級數：§\\frac{1}{1 - \\frac{1}{2}} = 2§"],
+                ["§\\frac{d}{dx}\\left(\\frac{1}{x}\\right) = ?§", "-\\frac{1}{x^{2}}", "\\frac{1}{x^{2}}", "\\ln x", "-\\frac{1}{x}", "§(x^{-1})' = -x^{-2}§"],
+                ["§\\int_{1}^{e} \\frac{1}{x}\\,dx = ?§", "1", "e", "0", "e - 1", "§\\left[\\ln x\\right]_{1}^{e} = 1 - 0 = 1§"]
+            ]
+        };
+        const bankBags = {};
+        function drawBankQuestion(diff) {
+            const bank = QUESTION_BANK[diff];
+            if (!bank) return null;
+            if (!bankBags[diff] || bankBags[diff].length === 0) {
+                bankBags[diff] = shuffle(bank.map((_, i) => i)); // 抽完一輪才會重複
+            }
+            const r = bank[bankBags[diff].pop()];
+            return {
+                question: r[0],
+                correct: `§${r[1]}§`,
+                options: shuffle([r[1], r[2], r[3], r[4]].map(o => `§${o}§`)),
+                steps: r[5]
+            };
+        }
+
+        function generateQuestion(diff) {
+            if (Math.random() < 0.5) {
+                const fromBank = drawBankQuestion(diff);
+                if (fromBank) return fromBank;
+            }
+            let qText = "", qTex = "", correctAns = "", steps = "";
+            let options = [];
+
+            if (diff === 'easy') {
+                const type = randInt(1, 4);
+                if (type === 1) { // 雙位數加法
+                    const a = randInt(12, 89), b = randInt(15, 85);
+                    const ans = a + b;
+                    qText = `${a} + ${b} = ?`;
+                    qTex = `§${a} + ${b} = ?§`;
+                    correctAns = `${ans}`;
+                    steps = `【基礎加法】\n直接將位數相加：§${a} + ${b} = ${ans}§`;
+                } else if (type === 2) { // 雙位數減法
+                    const b = randInt(15, 60), ans = randInt(10, 50);
+                    const a = b + ans;
+                    qText = `${a} - ${b} = ?`;
+                    qTex = `§${a} - ${b} = ?§`;
+                    correctAns = `${ans}`;
+                    steps = `【基礎減法】\n直接計算：§${a} - ${b} = ${ans}§`;
+                } else if (type === 3) { // 九九乘法 / 基礎乘法
+                    const a = randInt(6, 12), b = randInt(6, 15);
+                    const ans = a * b;
+                    qText = `${a} × ${b} = ?`;
+                    qTex = `§${a} \\times ${b} = ?§`;
+                    correctAns = `${ans}`;
+                    steps = `【乘法運算】\n計算兩數相乘：§${a} \\times ${b} = ${ans}§`;
+                } else { // 整數平方
+                    const a = randInt(11, 20);
+                    const ans = a * a;
+                    qText = `${a}² = ?`;
+                    qTex = `§${a}^{2} = ?§`;
+                    correctAns = `${ans}`;
+                    steps = `【整數平方】\n§${a}^{2} = ${a} \\times ${a} = ${ans}§`;
+                }
+            } else if (diff === 'medium') {
+                const type = randInt(1, 4);
+                if (type === 1) { // 四則混合
+                    const a = randInt(10, 30), b = randInt(3, 8), c = randInt(2, 6);
+                    const ans = a + (b * c);
+                    qText = `${a} + ${b} × ${c} = ?`;
+                    qTex = `§${a} + ${b} \\times ${c} = ?§`;
+                    correctAns = `${ans}`;
+                    steps = `【四則混合運算】\n先算乘除，後算加減：\n先算 §${b} \\times ${c} = ${b*c}§\n再算 §${a} + ${b*c} = ${ans}§`;
+                } else if (type === 2) { // 分數加法
+                    const denom = randInt(3, 8);
+                    const num1 = randInt(1, denom - 1), num2 = randInt(1, denom - 1);
+                    const sumNum = num1 + num2;
+                    const g = gcd(sumNum, denom);
+                    qText = `${num1}/${denom} + ${num2}/${denom} = ?`;
+                    qTex = `§\\frac{${num1}}{${denom}} + \\frac{${num2}}{${denom}} = ?§`;
+                    correctAns = (g === denom) ? `1` : (sumNum % denom === 0) ? `${sumNum/denom}` : `${sumNum/g}/${denom/g}`;
+                    steps = `【同分母分數加法】\n分母不變，分子相加：§${num1} + ${num2} = ${sumNum}§\n最簡分數結果：§${texOpt(correctAns)}§`;
+                } else if (type === 3) { // 矩形面積 / 周長
+                    const w = randInt(5, 12), h = randInt(4, 10);
+                    const ans = w * h;
+                    qText = `長方形長 ${w}、寬 ${h}，面積為 ?`;
+                    qTex = `長方形長 §${w}§、寬 §${h}§，面積為 ?`;
+                    correctAns = `${ans}`;
+                    steps = `【長方形面積公式】\n面積 = 長 × 寬 = §${w} \\times ${h} = ${ans}§`;
+                } else { // 基礎一元一次未知數
+                    const x = randInt(5, 15), k = randInt(3, 9), b = randInt(2, 20);
+                    const total = k * x + b;
+                    qText = `解未知數 x：${k}x + ${b} = ${total}`;
+                    qTex = `解未知數 §x§：§${k}x + ${b} = ${total}§`;
+                    correctAns = `x = ${x}`;
+                    steps = `【一元一次方程】\n1. 兩邊同減 §${b}§：§${k}x = ${total - b}§\n2. 兩邊同除以 §${k}§：§x = ${x}§`;
+                }
+            } else if (diff === 'hard') {
+                const type = randInt(1, 4);
+                if (type === 1) { // 一元二次方程十字相乘
+                    const r1 = randInt(1, 8), r2 = randInt(1, 8);
+                    const b = -(r1 + r2), c = r1 * r2;
+                    const bStr = b >= 0 ? `+ ${b}` : `- ${Math.abs(b)}`;
+                    qText = `方程式 x² ${bStr}x + ${c} = 0 的正整數根？`;
+                    qTex = `方程式 §x^{2} ${bStr}x + ${c} = 0§ 的正整數根？`;
+                    correctAns = `${r1} 或 ${r2}`;
+                    steps = `【因式分解】\n§(x - ${r1})(x - ${r2}) = 0§\n解得 §x = ${r1}§ 或 §x = ${r2}§`;
+                } else if (type === 2) { // 最大公因數 GCD
+                    const g = randInt(4, 12);
+                    const a = g * randInt(2, 5), b = g * randInt(6, 9);
+                    qText = `求 ${a} 與 ${b} 的最大公因數 GCD？`;
+                    qTex = `求 §${a}§ 與 §${b}§ 的最大公因數 GCD？`;
+                    correctAns = `${g}`;
+                    steps = `【輾轉相除法 / 因數分解】\n§${a} = ${g} \\times ${a/g}§\n§${b} = ${g} \\times ${b/g}§\n最大公因數為 §${g}§`;
+                } else if (type === 3) { // 等差數列第 n 項
+                    const a1 = randInt(2, 10), d = randInt(3, 7), n = randInt(6, 12);
+                    const an = a1 + (n - 1) * d;
+                    qText = `首項 a₁=${a1}，公差 d=${d}，求等差數列第 ${n} 項 a_n？`;
+                    qTex = `首項 §a_1 = ${a1}§，公差 §d = ${d}§，求等差數列第 §${n}§ 項 §a_n§？`;
+                    correctAns = `${an}`;
+                    steps = `【等差數列通項公式】\n§a_n = a_1 + (n - 1)d§\n§a_{${n}} = ${a1} + (${n} - 1) \\times ${d} = ${a1} + ${n-1} \\times ${d} = ${an}§`;
+                } else { // 百分率打折應用題
+                    const original = randInt(2, 10) * 100;
+                    const discount = randInt(7, 9); // 7折~9折
+                    const ans = original * discount / 10;
+                    qText = `原價 $${original} 的商品打 ${discount} 折後的售價？`;
+                    qTex = `原價 §\\$${original}§ 的商品打 §${discount}§ 折後的售價？`;
+                    correctAns = `$${ans}`;
+                    steps = `【百分率折扣】\n售價 = 原價 × (折扣/10)\n§${original} \\times ${discount/10} = \\$${ans}§`;
+                }
+            } else if (diff === 'nightmare') {
+                const type = randInt(1, 4);
+                if (type === 1) { // 2x2 行列式
+                    const a = randInt(2, 7), b = randInt(1, 5), c = randInt(1, 5), d = randInt(2, 7);
+                    const det = a * d - b * c;
+                    qText = `計算二階行列式：| ${a}  ${b} | / | ${c}  ${d} | = ?`;
+                    qTex = `計算二階行列式：§\\begin{vmatrix} ${a} & ${b} \\\\ ${c} & ${d} \\end{vmatrix} = ?§`;
+                    correctAns = `${det}`;
+                    steps = `【二階行列式公式】\n§\\begin{vmatrix} a & b \\\\ c & d \\end{vmatrix} = ad - bc§\n計算：§(${a} \\times ${d}) - (${b} \\times ${c}) = ${a*d} - ${b*c} = ${det}§`;
+                } else if (type === 2) { // 根號化簡
+                    const k = randInt(2, 6), p = [2, 3, 5, 6, 7, 10][randInt(0, 5)]; // p 必為無平方因數，確保化簡到最簡
+                    const N = k * k * p;
+                    qText = `簡化根號 √${N} = ?`;
+                    qTex = `簡化根號 §\\sqrt{${N}} = ?§`;
+                    correctAns = `${k}√${p}`;
+                    steps = `【根號化簡】\n§\\sqrt{${N}} = \\sqrt{${k}^{2} \\times ${p}} = ${k}\\sqrt{${p}}§`;
+                } else if (type === 3) { // 勾股定理
+                    const pairs = [[3,4,5], [5,12,13], [6,8,10], [8,15,17], [9,12,15]];
+                    const choice = pairs[randInt(0, pairs.length - 1)];
+                    qText = `直角三角形兩直角邊為 ${choice[0]} 與 ${choice[1]}，斜邊長為 ?`;
+                    qTex = `直角三角形兩直角邊為 §${choice[0]}§ 與 §${choice[1]}§，斜邊長為 ?`;
+                    correctAns = `${choice[2]}`;
+                    steps = `【勾股定理】\n§c = \\sqrt{a^{2} + b^{2}} = \\sqrt{${choice[0]}^{2} + ${choice[1]}^{2}} = \\sqrt{${choice[0]*choice[0]} + ${choice[1]*choice[1]}} = ${choice[2]}§`;
+                } else { // 對數運算 Log
+                    const base = randInt(2, 4);
+                    const exp = randInt(2, 5);
+                    const val = Math.pow(base, exp);
+                    qText = `求 log_${base}(${val}) = ?`;
+                    qTex = `求 §\\log_{${base}} ${val} = ?§`;
+                    correctAns = `${exp}`;
+                    steps = `【對數定義】\n若 §${base}^{x} = ${val}§，則 §x = ${exp}§\n故 §\\log_{${base}} ${val} = ${exp}§`;
+                }
+            } else if (diff === 'hell') {
+                const type = randInt(1, 4);
+                if (type === 1) { // 極限運算 limit (x^2 - a^2)/(x - a)
+                    const a = randInt(2, 8);
+                    const ans = 2 * a;
+                    qText = `求極限 lim (x→${a}) (x² - ${a*a}) / (x - ${a}) = ?`;
+                    qTex = `求極限 §\\lim_{x \\to ${a}} \\frac{x^{2} - ${a*a}}{x - ${a}} = ?§`;
+                    correctAns = `${ans}`;
+                    steps = `【因式分解約分極限】\n§\\lim_{x \\to ${a}} \\frac{(x - ${a})(x + ${a})}{x - ${a}}§\n§= \\lim_{x \\to ${a}} (x + ${a}) = ${a} + ${a} = ${ans}§`;
+                } else if (type === 2) { // 三角函數特殊角
+                    const angles = [
+                        { q: "sin(30°)", t: "\\sin 30^\\circ", ans: "1/2", s: "\\sin 30^\\circ = 0.5 = \\frac{1}{2}" },
+                        { q: "cos(60°)", t: "\\cos 60^\\circ", ans: "1/2", s: "\\cos 60^\\circ = 0.5 = \\frac{1}{2}" },
+                        { q: "tan(45°)", t: "\\tan 45^\\circ", ans: "1", s: "\\tan 45^\\circ = 1" },
+                        { q: "sin(90°)", t: "\\sin 90^\\circ", ans: "1", s: "\\sin 90^\\circ = 1" },
+                        { q: "cos(180°)", t: "\\cos 180^\\circ", ans: "-1", s: "\\cos 180^\\circ = -1" }
+                    ];
+                    const picked = angles[randInt(0, angles.length - 1)];
+                    qText = `三角函數數值：${picked.q} = ?`;
+                    qTex = `三角函數數值：§${picked.t} = ?§`;
+                    correctAns = picked.ans;
+                    steps = `【三角函數特殊角】\n§${picked.s}§`;
+                } else if (type === 3) { // 排列組合 C(n, k)
+                    const n = randInt(5, 8), k = randInt(2, 3);
+                    let num = 1, den = 1;
+                    for(let i=0; i<k; i++) { num *= (n - i); den *= (i + 1); }
+                    const ans = num / den;
+                    qText = `組合數 C(${n}, ${k}) = ?`;
+                    qTex = `組合數 §\\binom{${n}}{${k}} = ?§`;
+                    correctAns = `${ans}`;
+                    steps = `【組合公式】\n§\\binom{${n}}{${k}} = \\frac{${n}!}{${k}! \\times (${n}-${k})!}§\n計算結果為 §${ans}§`;
+                } else { // 模運算 mod
+                    const a = randInt(25, 99), b = randInt(4, 9);
+                    const ans = a % b;
+                    qText = `計算模運算 (餘數)：${a} mod ${b} = ?`;
+                    qTex = `計算模運算 (餘數)：§${a} \\bmod ${b} = ?§`;
+                    correctAns = `${ans}`;
+                    steps = `【模運算】\n§${a} \\div ${b} = ${Math.floor(a/b)}§ 餘 §${ans}§\n故 §${a} \\bmod ${b} = ${ans}§`;
+                }
+            } else if (diff === 'genesis') {
+                const type = randInt(1, 4);
+                if (type === 1) { // 微積分導數 Derivative
+                    const n = randInt(3, 6), a = randInt(2, 5);
+                    const coef = a * n;
+                    qText = `若 f(x) = ${a}x^${n}，求導函數 f'(x) = ?`;
+                    qTex = `若 §f(x) = ${a}x^{${n}}§，求導函數 §f'(x) = ?§`;
+                    correctAns = `${coef}x^${n-1}`;
+                    steps = `【微分次術法則】\n§\\frac{d}{dx}(a \\cdot x^{n}) = a \\cdot n \\cdot x^{n-1}§\n§f'(x) = ${a} \\times ${n} \\cdot x^{${n}-1} = ${coef}x^{${n-1}}§`;
+                } else if (type === 2) { // 歐拉公式與複數 Euler / Complex
+                    qText = `根據歐拉公式，e^(i·π) + 1 的值為？`;
+                    qTex = `根據歐拉公式，§e^{i\\pi} + 1§ 的值為？`;
+                    correctAns = `0`;
+                    steps = `【歐拉恆等式 Euler's Identity】\n§e^{i\\pi} = \\cos\\pi + i\\sin\\pi = -1 + 0 = -1§\n故 §e^{i\\pi} + 1 = 0§`;
+                } else if (type === 3) { // 重要極限 lim (sin ax)/x
+                    const a = randInt(3, 9);
+                    qText = `求極限 lim (x→0) sin(${a}x) / x = ?`;
+                    qTex = `求極限 §\\lim_{x \\to 0} \\frac{\\sin(${a}x)}{x} = ?§`;
+                    correctAns = `${a}`;
+                    steps = `【重要極限定理】\n§\\lim_{x \\to 0} \\frac{\\sin(kx)}{x} = k§\n故極限值為 §${a}§`;
+                } else { // 複數乘法 (a+bi)(c+di)
+                    const a = randInt(1, 4), b = randInt(1, 4);
+                    const c = randInt(1, 4), d = randInt(1, 4);
+                    const real = a*c - b*d;
+                    const imag = a*d + b*c;
+                    const imagStr = imag >= 0 ? `+ ${imag}i` : `- ${Math.abs(imag)}i`;
+                    qText = `計算複數乘積：(${a} + ${b}i) × (${c} + ${d}i) = ?`;
+                    qTex = `計算複數乘積：§(${a} + ${b}i) \\times (${c} + ${d}i) = ?§`;
+                    correctAns = `${real} ${imagStr}`;
+                    steps = `【複數乘法】\n§(a+bi)(c+di) = (ac - bd) + (ad + bc)i§\n實部：§${a} \\times ${c} - ${b} \\times ${d} = ${real}§\n虛部：§${a} \\times ${d} + ${b} \\times ${c} = ${imag}§\n結果：§${real} ${imagStr}§`;
+                }
+            }
+
+            // Generate Wrong Distractors
+            options.push(correctAns);
+            buildDistractors(qText, correctAns).forEach(f => options.push(f));
+
+            return {
+                question: qTex,
+                correct: tex(correctAns),
+                options: shuffle(options.map(tex)),
+                steps: steps
+            };
+        }
+
+        function checkUnlockedSecrets(silent = false) {
+            const unlockedStore = localStorage.getItem('math_rpg_secret_unlocked') === 'true';
+            const hasGenesisTime = !!gameState.bestTimes['genesis'];
+            const hasAchievement = gameState.unlockedAchievements.includes('secret_unlocked');
+
+            if (unlockedStore || hasGenesisTime || hasAchievement || gameState.secretUnlocked) {
+                gameState.secretUnlocked = true;
+                localStorage.setItem('math_rpg_secret_unlocked', 'true');
+                if (!gameState.unlockedAchievements.includes('secret_unlocked')) {
+                    unlockAchievement('secret_unlocked', silent);
+                }
+            }
+            updateSecretButtonUI();
+        }
+
+        function updateSecretButtonUI() {
+            const label = document.getElementById('secret-btn-label');
+            const cardBtn = document.getElementById('genesis-card-btn');
+            const cardTitle = document.getElementById('genesis-card-title');
+            const cardDesc = document.getElementById('genesis-card-desc');
+            const iconBg = document.getElementById('genesis-icon-bg');
+            const icon = document.getElementById('genesis-icon');
+
+            if (gameState.secretUnlocked) {
+                label.innerText = "✨ 創世已開啟";
+                cardBtn.className = "group p-4 bg-gradient-to-b from-slate-900 via-purple-950/40 to-slate-900 border-2 border-yellow-500/60 hover:border-yellow-400 rounded-xl transition duration-300 flex flex-col items-center text-center gap-2 relative overflow-hidden shadow-2xl animate-genesis cursor-pointer hover:-translate-y-1";
+                iconBg.className = "w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center text-yellow-300 text-xl group-hover:scale-110 transition border border-yellow-400/50";
+                icon.className = "fa-solid fa-atom";
+                cardTitle.className = "font-black text-yellow-300 tracking-wide";
+                cardTitle.innerText = "創世 - 混沌奇點";
+                cardDesc.className = "text-[11px] text-purple-200 mt-1";
+                cardDesc.innerText = "微積分/歐拉公式/極限/複數\nHP: 1200 | 倒數 4.5s | 創世神考";
+            } else {
+                label.innerText = "🔒 ???";
+                cardBtn.className = "group p-4 bg-slate-900 border border-slate-700 rounded-xl transition duration-300 flex flex-col items-center text-center gap-2 relative overflow-hidden shadow-xl cursor-pointer hover:border-slate-500";
+                iconBg.className = "w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-500 text-xl group-hover:scale-110 transition";
+                icon.className = "fa-solid fa-lock";
+                cardTitle.className = "font-bold text-slate-400";
+                cardTitle.innerText = "??? - 隱藏難度";
+                cardDesc.className = "text-[11px] text-slate-500 mt-1";
+                cardDesc.innerText = "需在地獄模式獲勝取得紙條密碼\n或點擊右上角解鎖";
+            }
+        }
+
+        // 隨機 4 位數紙條密碼：第一次需要時隨機產生並記住，之後每次拿到的紙條都是同一組
+        var memorySecretCode = null; // 用 var：gameState 初始化時就會呼叫 getSecretPasscode()，let 會因尚未宣告而報錯
+        function getSecretPasscode() {
+            if (memorySecretCode) return memorySecretCode;
+            let code = '';
+            try { code = localStorage.getItem('math_rpg_secret_passcode') || ''; } catch (e) {}
+            if (!/^\d{4}$/.test(code)) {
+                const n = (window.crypto && crypto.getRandomValues)
+                    ? crypto.getRandomValues(new Uint32Array(1))[0] % 10000
+                    : Math.floor(Math.random() * 10000);
+                code = String(n).padStart(4, '0');
+                try { localStorage.setItem('math_rpg_secret_passcode', code); } catch (e) {}
+            }
+            memorySecretCode = code;
+            return code;
+        }
+
+        function showStartScreen() {
+            if (typeof rankedAbort === 'function') rankedAbort();
+            document.getElementById('ranked-screen').classList.add('hidden');
+            scheduleSync(2000);
+            clearInterval(gameState.timerInterval);
+            clearInterval(gameState.battleTimerInterval);
+            document.getElementById('battle-screen').classList.add('hidden');
+            document.getElementById('end-screen').classList.add('hidden');
+            document.getElementById('start-screen').classList.remove('hidden');
+            updateBestTimesDisplay();
+        }
+
+        function submitPasscode() {
+            const input = document.getElementById('passcode-input').value.trim();
+            if (input === gameState.secretPasscode) {
+                gameState.secretUnlocked = true;
+                localStorage.setItem('math_rpg_secret_unlocked', 'true');
+                const alreadyHadAch = gameState.unlockedAchievements.includes('secret_unlocked');
+                unlockAchievement('secret_unlocked');
+                updateSecretButtonUI();
+                closePasscodeModal();
+                if (alreadyHadAch) showNotice("解鎖成功，創世難度已開放"); // 首次解鎖時由成就視窗呈現
+            } else {
+                showNotice("密碼錯誤，請確認紙條上的 4 位數號碼", true);
+            }
+        }
+
+        function handleGenesisClick() {
+            if (gameState.secretUnlocked) {
+                startGame('genesis');
+            } else {
+                openPasscodeModal();
+            }
+        }
+
+        function updateBestTimesDisplay() {
+            const diffs = ['easy', 'medium', 'hard', 'nightmare', 'hell', 'genesis'];
+            diffs.forEach(d => {
+                const badge = document.getElementById(`best-time-${d}`);
+                if (badge) {
+                    if (gameState.bestTimes[d]) {
+                        badge.innerText = `⏱️ 最速: ${gameState.bestTimes[d].toFixed(1)}s`;
+                    } else {
+                        badge.innerText = `⏱️ 最速: --`;
+                    }
+                }
+            });
+        }
+
+        function updateHUD() {
+            const hpPct = Math.max(0, (gameState.playerHp / gameState.playerMaxHp) * 100);
+            const mpPct = Math.max(0, (gameState.playerMp / 100) * 100);
+            document.getElementById('player-hp-bar').style.width = `${hpPct}%`;
+            document.getElementById('player-hp-text').innerText = `${Math.ceil(gameState.playerHp)}/${gameState.playerMaxHp}`;
+            document.getElementById('player-mp-bar').style.width = `${mpPct}%`;
+            document.getElementById('player-mp-text').innerText = `${Math.floor(gameState.playerMp)}/100`;
+
+            document.getElementById('combo-count').innerText = `${gameState.combo}x`;
+            document.getElementById('score-text').innerText = gameState.score;
+
+            const bossHpPct = Math.max(0, (gameState.bossHp / gameState.bossMaxHp) * 100);
+            document.getElementById('boss-hp-bar').style.width = `${bossHpPct}%`;
+            document.getElementById('boss-hp-text').innerText = `${Math.ceil(gameState.bossHp)} / ${gameState.bossMaxHp} HP`;
+
+            document.getElementById('skill-heal-btn').disabled = gameState.playerMp < 30;
+            document.getElementById('skill-shield-btn').disabled = gameState.playerMp < 40;
+            document.getElementById('skill-berserk-btn').disabled = gameState.playerMp < 60;
+            document.getElementById('skill-hint-btn').disabled = gameState.playerMp < 30;
+        }
+
+        function updateShieldUI() {
+            const badge = document.getElementById('boss-shield-badge');
+            const hitsLeft = document.getElementById('shield-hits-left');
+            if (gameState.bossShield > 0) {
+                badge.classList.remove('hidden');
+                hitsLeft.innerText = gameState.bossShield;
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        // ================= 帳號（名稱 + 密碼，進度同步到雲端）=================
+        const ACCOUNT_KEY = 'math_rpg_account';
+        const SYNC_KEYS = ['achievements', 'best_times', 'equipped_title', 'secret_passcode', 'secret_unlocked', 'stats'];
+        let lastSyncAt = 0, syncTimer = null;
+
+        function getAccount() {
+            try {
+                const a = JSON.parse(localStorage.getItem(ACCOUNT_KEY) || 'null');
+                return (a && a.id && a.pw && a.name) ? a : null;
+            } catch (e) { return null; }
+        }
+        function getPlayerKey() {
+            const a = getAccount();
+            return a ? a.id : getClientId();
+        }
+        async function sha256Hex(text) {
+            if (!(window.crypto && crypto.subtle)) throw new Error('這個環境不支援帳號功能（需要 https 網址）');
+            const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+            return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+        async function accountIds(name, password) {
+            const key = cleanName(name).normalize('NFKC').toLowerCase();
+            const id = (await sha256Hex('mrpg-id:' + key)).slice(0, 32);
+            const pw = await sha256Hex(`mrpg-pw:${id}:${password}`);
+            return { id, pw };
+        }
+
+        function readSnapshot() {
+            const d = {};
+            SYNC_KEYS.forEach(k => {
+                try { const v = localStorage.getItem('math_rpg_' + k); if (v !== null) d[k] = v; } catch (e) {}
+            });
+            return d;
+        }
+        function applySnapshot(d) {
+            SYNC_KEYS.forEach(k => {
+                if (typeof d[k] === 'string') { try { localStorage.setItem('math_rpg_' + k, d[k]); } catch (e) {} }
+            });
+        }
+        function parseJson(str, fallback) {
+            try { const v = JSON.parse(str); return v == null ? fallback : v; } catch (e) { return fallback; }
+        }
+        // 合併規則：成就取聯集、最速取較小、統計取較大、密碼以雲端為準
+        function mergeSnapshots(local, cloud) {
+            const out = { ...cloud, ...local };
+            const ach = new Set([...parseJson(local.achievements, []), ...parseJson(cloud.achievements, [])]);
+            if (ach.size) out.achievements = JSON.stringify([...ach]);
+
+            const bt = { ...parseJson(cloud.best_times, {}) }, lbt = parseJson(local.best_times, {});
+            for (const k in lbt) if (typeof lbt[k] === 'number' && (typeof bt[k] !== 'number' || lbt[k] < bt[k])) bt[k] = lbt[k];
+            if (Object.keys(bt).length) out.best_times = JSON.stringify(bt);
+
+            const sc = parseJson(cloud.stats, {}), sl = parseJson(local.stats, {}), st = {};
+            new Set([...Object.keys(sc), ...Object.keys(sl)]).forEach(k => { st[k] = Math.max(Number(sc[k]) || 0, Number(sl[k]) || 0); });
+            if (Object.keys(st).length) out.stats = JSON.stringify(st);
+
+            if (cloud.secret_passcode) out.secret_passcode = cloud.secret_passcode;
+            if (cloud.secret_unlocked === 'true') out.secret_unlocked = 'true';
+            if ((!local.equipped_title || local.equipped_title === '初級冒險者') && cloud.equipped_title) out.equipped_title = cloud.equipped_title;
+            return out;
+        }
+
+        const putOpts = obj => ({ method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(obj) });
+
+        async function pushCloud() {
+            const acc = getAccount();
+            if (!acc || !getOnlineUrl()) return;
+            const cloud = (await onlineFetch(`${acc.id}/data`, {}, 'accounts')) || {};
+            const merged = mergeSnapshots(readSnapshot(), cloud);
+            merged.updated = String(Date.now());
+            await onlineFetch(acc.id, putOpts({ pw: acc.pw, meta: { name: acc.name, created: acc.created || Date.now() }, data: merged }), 'accounts');
+            lastSyncAt = Date.now();
+        }
+        function scheduleSync(delay) {
+            if (!getAccount()) return;
+            clearTimeout(syncTimer);
+            syncTimer = setTimeout(() => { pushCloud().catch(() => {}); }, delay);
+        }
+
+        async function migrateLeaderboard(newId, name) {
+            const deviceId = getClientId();
+            for (const d of Object.keys(DIFF_LABELS)) {
+                try {
+                    const entry = await onlineFetch(`${d}/${deviceId}`);
+                    if (!entry) continue;
+                    await onlineFetch(`${d}/${newId}`, putOpts({ ...entry, name }));
+                    await onlineFetch(`${d}/${deviceId}`, { method: 'DELETE' });
+                } catch (e) {}
+            }
+        }
+
+        async function accountSignup(rawName, password) {
+            const name = cleanName(rawName);
+            const { id, pw } = await accountIds(name, password);
+            if (await onlineFetch(`${id}/meta`, {}, 'accounts')) throw new Error('這個名稱已被使用，請換一個，或直接登入');
+            const created = Date.now();
+            try {
+                await onlineFetch(id, putOpts({ pw, meta: { name, created }, data: { ...readSnapshot(), updated: String(created) } }), 'accounts');
+            } catch (e) {
+                if (e.status === 401 || e.status === 403) throw new Error('這個名稱已被使用，請換一個，或直接登入');
+                throw e;
+            }
+            try { localStorage.setItem(ACCOUNT_KEY, JSON.stringify({ id, pw, name, created })); } catch (e) {}
+            lastSyncAt = Date.now();
+            await migrateLeaderboard(id, name);
+        }
+
+        async function accountLogin(rawName, password) {
+            const { id, pw } = await accountIds(rawName, password);
+            const meta = await onlineFetch(`${id}/meta`, {}, 'accounts');
+            if (!meta) throw new Error('找不到這個帳號，請先註冊');
+            const cloud = (await onlineFetch(`${id}/data`, {}, 'accounts')) || {};
+            const merged = mergeSnapshots(readSnapshot(), cloud);
+            merged.updated = String(Date.now());
+            try {
+                await onlineFetch(id, putOpts({ pw, meta, data: merged }), 'accounts');
+            } catch (e) {
+                if (e.status === 401 || e.status === 403) throw new Error('密碼錯誤');
+                throw e;
+            }
+            applySnapshot(merged);
+            try { localStorage.setItem(ACCOUNT_KEY, JSON.stringify({ id, pw, name: meta.name || cleanName(rawName), created: meta.created })); } catch (e) {}
+        }
+
+        function accMsg(text, ok) {
+            const el = document.getElementById('acc-msg');
+            el.textContent = text;
+            el.className = 'text-xs min-h-[1rem] ' + (ok ? 'text-emerald-400' : 'text-red-400');
+        }
+        function updateAccountUI() {
+            const acc = getAccount();
+            document.getElementById('account-btn-text').textContent = acc ? acc.name : '登入 / 註冊';
+            const input = document.getElementById('player-name-input');
+            if (input) {
+                input.disabled = !!acc;
+                if (acc) input.value = acc.name;
+            }
+        }
+        function renderAccountModal() {
+            const acc = getAccount();
+            document.getElementById('acc-out').classList.toggle('hidden', !!acc);
+            document.getElementById('acc-in').classList.toggle('hidden', !acc);
+            if (acc) {
+                document.getElementById('acc-current').textContent = acc.name;
+                document.getElementById('acc-sync').textContent = lastSyncAt
+                    ? `上次同步：${new Date(lastSyncAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}`
+                    : '尚未同步（遊玩後會自動同步）';
+            } else {
+                const nameInput = document.getElementById('player-name-input');
+                document.getElementById('acc-name').value = nameInput ? cleanName(nameInput.value) : '';
+                document.getElementById('acc-pw').value = '';
+            }
+        }
+        function openAccountModal() {
+            accMsg('', true);
+            renderAccountModal();
+            document.getElementById('account-modal').classList.remove('hidden');
+        }
+        function closeAccountModal() {
+            document.getElementById('account-modal').classList.add('hidden');
+        }
+        function readAccountForm() {
+            const name = cleanName(document.getElementById('acc-name').value);
+            const password = document.getElementById('acc-pw').value;
+            if (!getOnlineUrl()) { accMsg('尚未設定線上資料庫網址，請先到排行榜的「線上排行榜設定」填寫', false); return null; }
+            if (!name) { accMsg('請輸入名稱', false); return null; }
+            if (password.length < 4 || password.length > 20) { accMsg('密碼需為 4 到 20 個字元', false); return null; }
+            return { name, password };
+        }
+        async function doSignup() {
+            const f = readAccountForm(); if (!f) return;
+            accMsg('建立中…', true);
+            try {
+                await accountSignup(f.name, f.password);
+                accMsg('註冊成功，已登入', true);
+                updateAccountUI(); renderAccountModal();
+            } catch (e) { accMsg(e.message, false); }
+        }
+        async function doLogin() {
+            const f = readAccountForm(); if (!f) return;
+            accMsg('登入中…', true);
+            try {
+                await accountLogin(f.name, f.password);
+                accMsg('登入成功，正在載入雲端進度…', true);
+                setTimeout(() => location.reload(), 800);
+            } catch (e) { accMsg(e.message, false); }
+        }
+        async function doSyncNow() {
+            accMsg('同步中…', true);
+            try { await pushCloud(); accMsg('同步完成', true); renderAccountModal(); }
+            catch (e) { accMsg(`同步失敗：${e.message}`, false); }
+        }
+        function doLogout() {
+            try { localStorage.removeItem(ACCOUNT_KEY); } catch (e) {}
+            updateAccountUI(); renderAccountModal();
+            accMsg('已登出（雲端進度仍保留）', true);
+        }
+
+        // ================= 排位賽 =================
+        const RK_SECONDS = 90, RK_SEARCH_MS = 10000, RK_COUNTDOWN = 3;
+        const RK_POINTS = { easy: 10, medium: 20, hard: 35, nightmare: 55, hell: 80 };
+        const RK_POOL = Object.keys(RK_POINTS);
+        const RK_AI = {
+            easy: { t: [3, 6], acc: 0.95, w: 2 }, medium: { t: [5, 9], acc: 0.85, w: 3 },
+            hard: { t: [8, 13], acc: 0.70, w: 3 }, nightmare: { t: [11, 17], acc: 0.55, w: 2 },
+            hell: { t: [15, 22], acc: 0.40, w: 1 }
+        };
+        const RK_AI_NAMES = ['小數點', '質數王', '歐拉', '帕斯卡', '阿基米德', '費馬', '高斯', '解方程的貓'];
+        const RK_KEY = 'math_rpg_ranked';
+        const RK_JSON = { 'Content-Type': 'application/json' };
+        const RK_SV = '{".sv":"timestamp"}';
+        let rk = null; // 目前這場排位賽的狀態
+
+        const rkEl = id => document.getElementById(id);
+        const rkSleep = ms => new Promise(r => setTimeout(r, ms));
+        const rkReq = (path, opts) => onlineFetch(path, opts, 'ranked');
+        const rkPut = (path, bodyStr) => rkReq(path, { method: 'PUT', headers: RK_JSON, body: bodyStr });
+        const rkDel = path => rkReq(path, { method: 'DELETE' }).catch(() => {});
+        const rkFmt = sec => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+        function rkLoad() {
+            try {
+                const o = JSON.parse(localStorage.getItem(RK_KEY) || '{}') || {};
+                return { rating: Number.isFinite(+o.rating) ? +o.rating : 1000, w: +o.w || 0, l: +o.l || 0, d: +o.d || 0 };
+            } catch (e) { return { rating: 1000, w: 0, l: 0, d: 0 }; }
+        }
+        function rkSave(r) { try { localStorage.setItem(RK_KEY, JSON.stringify(r)); } catch (e) {} }
+        function rkView(name) {
+            ['lobby', 'search', 'match', 'result'].forEach(v => rkEl('rk-' + v).classList.toggle('hidden', v !== name));
+        }
+        function rkSetScores(my) {
+            rkEl('rk-me-score').textContent = my.score;
+            rkEl('rk-opp-score').textContent = my.oppScore;
+        }
+
+        function rankedOpenLobby() {
+            rankedAbort();
+            ['start-screen', 'battle-screen', 'end-screen'].forEach(id => rkEl(id).classList.add('hidden'));
+            rkEl('ranked-screen').classList.remove('hidden');
+            const r = rkLoad();
+            rkEl('rk-rating').textContent = r.rating;
+            rkEl('rk-record').textContent = `${r.w} 勝 · ${r.l} 敗 · ${r.d} 平`;
+            rkEl('rk-points-hint').textContent = '得分：' + RK_POOL.map(d => `${DIFF_LABELS[d]} ${RK_POINTS[d]}`).join('／') +
+                `　｜　AI 對手強度 ${Math.round(rkAiLevel(r.rating) * 100)}%（積分越高越強）`;
+            rkView('lobby');
+        }
+        function rankedAbort() {
+            if (!rk) return;
+            const old = rk; rk = null;
+            old.timers.forEach(t => { clearInterval(t); clearTimeout(t); });
+            if (old.phase === 'search' && old.queued) rkDel(`queue/${old.id}`);
+        }
+        function rankedCancel() { rankedAbort(); rankedOpenLobby(); }
+
+        function rankedStartSearch() {
+            rankedAbort();
+            const my = rk = { phase: 'search', id: getClientId(), name: getPlayerName(), offset: 0, score: 0, oppScore: 0,
+                              oppDone: false, timers: [], mode: null, queued: false };
+            rkView('search');
+            const t0 = Date.now();
+            rkEl('rk-search-text').textContent = '配對中… 0 秒';
+            my.timers.push(setInterval(() => { rkEl('rk-search-text').textContent = `配對中… ${Math.floor((Date.now() - t0) / 1000)} 秒`; }, 500));
+            if (!getOnlineUrl()) { rkStartAI(my); return; }
+            rkSearch(my, t0);
+        }
+
+        async function rkSearch(my, t0) {
+            const alive = () => rk === my && my.phase === 'search';
+            try {
+                const first = await rkPut(`queue/${my.id}`, JSON.stringify({ name: my.name, since: JSON.parse(RK_SV), t: JSON.parse(RK_SV) }));
+                my.queued = true;
+                if (first && typeof first.t === 'number') my.offset = first.t - Date.now();
+                while (alive() && Date.now() - t0 < RK_SEARCH_MS) {
+                    await rkSleep(1500);
+                    if (!alive()) return;
+                    const hb = await rkPut(`queue/${my.id}/t`, RK_SV);
+                    if (typeof hb !== 'number') throw new Error('bad-hb');
+                    my.offset = hb - Date.now();
+                    const inv = await rkReq(`invites/${my.id}`);
+                    if (inv && inv.matchId && inv.from && hb - (inv.ts || 0) <= 20000) {
+                        if (await rkJoin(my, inv)) return;
+                        continue;
+                    }
+                    const q = (await rkReq('queue')) || {};
+                    const fresh = Object.entries(q)
+                        .filter(([, v]) => v && typeof v.t === 'number' && hb - v.t <= 6000)
+                        .sort((a, b) => ((a[1].since || 0) - (b[1].since || 0)) || (a[0] < b[0] ? -1 : 1));
+                    const idx = fresh.findIndex(([k]) => k === my.id);
+                    if (alive() && idx >= 0 && idx % 2 === 0 && idx + 1 < fresh.length) {
+                        const [pid, pv] = fresh[idx + 1];
+                        if (await rkInitiate(my, pid, pv.name)) return;
+                    }
+                }
+            } catch (e) { /* 連線失敗：改由 AI 應戰 */ }
+            if (alive()) { rkDel(`queue/${my.id}`); my.queued = false; rkStartAI(my); }
+        }
+
+        async function rkInitiate(my, pid, pname) {
+            const mid = `${my.id}-${pid}-${Date.now().toString(36)}`;
+            await rkPut(`matches/${mid}/${my.id}`, JSON.stringify({ name: my.name, score: 0, joined: JSON.parse(RK_SV) }));
+            await rkPut(`invites/${pid}`, JSON.stringify({ matchId: mid, from: my.id, name: my.name, ts: JSON.parse(RK_SV) }));
+            const until = Date.now() + 8000;
+            while (rk === my && my.phase === 'search' && Date.now() < until) {
+                await rkSleep(700);
+                const m = (await rkReq(`matches/${mid}`)) || {};
+                if (m[pid]) {
+                    const startServer = await rkPut(`matches/${mid}/start`, RK_SV);
+                    rkDel(`queue/${my.id}`); my.queued = false;
+                    return rkLaunch(my, mid, pid, m[pid].name || pname, startServer);
+                }
+            }
+            rkDel(`matches/${mid}/${my.id}`); rkDel(`invites/${pid}`);
+            return false;
+        }
+
+        async function rkJoin(my, inv) {
+            const mid = inv.matchId;
+            await rkPut(`matches/${mid}/${my.id}`, JSON.stringify({ name: my.name, score: 0, joined: JSON.parse(RK_SV) }));
+            rkDel(`invites/${my.id}`);
+            const until = Date.now() + 8000;
+            while (rk === my && my.phase === 'search' && Date.now() < until) {
+                await rkSleep(600);
+                const m = (await rkReq(`matches/${mid}`)) || {};
+                if (typeof m.start === 'number' && m[inv.from]) {
+                    rkDel(`queue/${my.id}`); my.queued = false;
+                    return rkLaunch(my, mid, inv.from, m[inv.from].name || inv.name, m.start);
+                }
+            }
+            rkDel(`matches/${mid}/${my.id}`);
+            return false;
+        }
+
+        function rkLaunch(my, mid, oppId, oppName, startServer) {
+            if (rk !== my) return false;
+            my.mode = 'human'; my.mid = mid; my.oppId = oppId;
+            my.oppName = cleanName(oppName) || '對手';
+            my.beginAt = Math.max(startServer - my.offset + RK_COUNTDOWN * 1000, Date.now() + 800);
+            rkEnter(my);
+            return true;
+        }
+        function rkStartAI(my) {
+            if (rk !== my) return;
+            my.mode = 'ai';
+            my.oppName = '🤖 ' + RK_AI_NAMES[Math.floor(Math.random() * RK_AI_NAMES.length)];
+            my.aiLevel = rkAiLevel(rkLoad().rating);                          // 0（新手）～ 1（頂尖）
+            my.aiSkill = (1.5 - 0.95 * my.aiLevel) * (0.9 + Math.random() * 0.2); // 思考時間倍率：積分越高越小＝越快
+            my.beginAt = Date.now() + RK_COUNTDOWN * 1000;
+            rkEnter(my);
+        }
+
+        function rkEnter(my) {
+            my.timers.forEach(t => { clearInterval(t); clearTimeout(t); }); my.timers = [];
+            my.phase = 'match';
+            rkEl('rk-me-name').textContent = my.name;
+            rkEl('rk-opp-name').textContent = my.oppName;
+            rkSetScores(my);
+            rkEl('rk-timer').textContent = rkFmt(RK_SECONDS);
+            rkEl('rk-bar').style.width = '100%';
+            rkEl('rk-choose').classList.add('hidden');
+            rkEl('rk-question').classList.add('hidden');
+            rkEl('rk-countdown').classList.remove('hidden');
+            rkView('match');
+            const cd = setInterval(() => {
+                if (rk !== my) { clearInterval(cd); return; }
+                const left = my.beginAt - Date.now();
+                if (left > 0) { rkEl('rk-countdown').textContent = Math.ceil(left / 1000); return; }
+                clearInterval(cd);
+                rkBegin(my);
+            }, 100);
+            my.timers.push(cd);
+        }
+
+        function rkBegin(my) {
+            my.endsAt = my.beginAt + RK_SECONDS * 1000;
+            rkEl('rk-countdown').classList.add('hidden');
+            my.timers.push(setInterval(() => {
+                if (rk !== my || my.phase !== 'match') return;
+                const left = my.endsAt - Date.now();
+                rkEl('rk-timer').textContent = rkFmt(Math.max(0, Math.ceil(left / 1000)));
+                rkEl('rk-bar').style.width = Math.max(0, left / (RK_SECONDS * 10)) + '%';
+                if (left <= 0) rkEnd(my);
+            }, 200));
+            if (my.mode === 'human') {
+                my.timers.push(setInterval(async () => {
+                    if (rk !== my || my.phase !== 'match') return;
+                    try { const o = await rkReq(`matches/${my.mid}/${my.oppId}`); if (o && rk === my) rkSetOpp(my, o); } catch (e) {}
+                }, 1500));
+            } else {
+                rkAiStep(my);
+            }
+            rkNextRound(my);
+        }
+        function rkSetOpp(my, o) {
+            my.oppScore = Number(o.score) || 0;
+            my.oppDone = !!o.done;
+            rkSetScores(my);
+        }
+        // AI 強度隨玩家積分提高：1000 分約 0.2，1800 分以上達到 1
+        function rkAiLevel(rating) { return Math.min(1, Math.max(0, (rating - 800) / 1000)); }
+        function rkAiAccuracy(d, level) { return Math.min(0.98, Math.max(0.1, RK_AI[d].acc + (level - 0.3) * 0.45)); }
+        function rkAiPickDiff(level) {
+            const tilt = (level - 0.3) * 1.6; // 積分越高，越傾向挑難的題目
+            const weights = RK_POOL.map((d, i) => RK_AI[d].w * Math.exp(tilt * i));
+            let r = Math.random() * weights.reduce((a, b) => a + b, 0);
+            for (let i = 0; i < RK_POOL.length; i++) { r -= weights[i]; if (r <= 0) return RK_POOL[i]; }
+            return RK_POOL[RK_POOL.length - 1];
+        }
+        function rkAiStep(my) {
+            if (rk !== my || my.phase !== 'match') return;
+            const d = rkAiPickDiff(my.aiLevel), cfg = RK_AI[d];
+            const delay = (cfg.t[0] + Math.random() * (cfg.t[1] - cfg.t[0])) * my.aiSkill * 1000;
+            my.timers.push(setTimeout(() => {
+                if (rk !== my || my.phase !== 'match') return;
+                if (Math.random() < rkAiAccuracy(d, my.aiLevel)) { my.oppScore += RK_POINTS[d]; rkSetScores(my); }
+                rkAiStep(my);
+            }, delay));
+        }
+
+        function rkNextRound(my) {
+            if (rk !== my || my.phase !== 'match') return;
+            my.q = null; my.locked = false;
+            rkEl('rk-question').classList.add('hidden');
+            rkEl('rk-choose').classList.remove('hidden');
+            const box = rkEl('rk-choices');
+            box.innerHTML = '';
+            const picks = shuffle([...RK_POOL]).slice(0, 3).sort((a, b) => RK_POINTS[a] - RK_POINTS[b]);
+            const colors = { easy: 'border-emerald-500/60 text-emerald-300', medium: 'border-amber-500/60 text-amber-300',
+                             hard: 'border-orange-500/60 text-orange-300', nightmare: 'border-rose-500/60 text-rose-300', hell: 'border-purple-500/60 text-purple-300' };
+            picks.forEach(d => {
+                const b = document.createElement('button');
+                b.className = `flex items-center justify-between px-4 py-3.5 bg-slate-900 hover:bg-slate-800 border-2 rounded-xl font-black ${colors[d]}`;
+                const l = document.createElement('span'); l.textContent = DIFF_LABELS[d];
+                const p = document.createElement('span'); p.className = 'text-white'; p.textContent = `+${RK_POINTS[d]} 分`;
+                b.append(l, p);
+                b.onclick = () => rkPick(my, d);
+                box.appendChild(b);
+            });
+        }
+
+        function rkPick(my, d) {
+            if (rk !== my || my.phase !== 'match' || my.q) return;
+            my.q = generateQuestion(d); my.curDiff = d; my.locked = false;
+            rkEl('rk-choose').classList.add('hidden');
+            rkEl('rk-question').classList.remove('hidden');
+            rkEl('rk-q-diff').textContent = `${DIFF_LABELS[d]}・答對 +${RK_POINTS[d]} 分`;
+            const qt = rkEl('rk-q-text');
+            qt.textContent = my.q.question;
+            renderMath(qt);
+            const box = rkEl('rk-options');
+            box.innerHTML = '';
+            const btns = my.q.options.map((opt, i) => {
+                const b = document.createElement('button');
+                b.className = 'px-3 py-4 bg-slate-900 hover:bg-slate-800 border-2 border-slate-700 rounded-xl font-bold text-white text-base';
+                b.textContent = opt;
+                b.onclick = () => rkAnswer(my, i, btns);
+                box.appendChild(b);
+                return b;
+            });
+            renderMath(box);
+        }
+
+        function rkAnswer(my, i, btns) {
+            if (rk !== my || my.phase !== 'match' || !my.q || my.locked) return;
+            my.locked = true;
+            const ok = my.q.options[i] === my.q.correct;
+            recordAnswer(ok);
+            sound.play(ok ? 'correct' : 'wrong');
+            if (ok) {
+                my.score += RK_POINTS[my.curDiff];
+                rkSetScores(my);
+                if (my.mode === 'human') rkPut(`matches/${my.mid}/${my.id}/score`, String(my.score)).catch(() => {});
+            }
+            if (btns) {
+                btns[i].classList.add(ok ? 'bg-emerald-700' : 'bg-red-800', ok ? 'border-emerald-300' : 'border-red-300');
+                if (!ok) {
+                    const c = my.q.options.indexOf(my.q.correct);
+                    if (btns[c]) btns[c].classList.add('bg-emerald-700', 'border-emerald-300');
+                }
+            }
+            my.timers.push(setTimeout(() => rkNextRound(my), 700));
+        }
+        function rankedSkip() {
+            if (rk && rk.phase === 'match' && rk.q && !rk.locked) rkNextRound(rk);
+        }
+
+        async function rkEnd(my) {
+            if (rk !== my || my.phase !== 'match') return;
+            my.phase = 'ending';
+            my.timers.forEach(t => { clearInterval(t); clearTimeout(t); }); my.timers = [];
+            rkEl('rk-choose').classList.add('hidden');
+            rkEl('rk-question').classList.add('hidden');
+            const cdEl = rkEl('rk-countdown');
+            cdEl.textContent = '時間到！結算中…';
+            cdEl.classList.remove('hidden');
+            if (my.mode === 'human') {
+                try {
+                    await rkPut(`matches/${my.mid}/${my.id}/score`, String(my.score));
+                    await rkPut(`matches/${my.mid}/${my.id}/done`, 'true');
+                } catch (e) {}
+                const until = Date.now() + 6000;
+                while (rk === my && Date.now() < until && !my.oppDone) {
+                    await rkSleep(600);
+                    try { const o = await rkReq(`matches/${my.mid}/${my.oppId}`); if (o && rk === my) rkSetOpp(my, o); } catch (e) {}
+                }
+            }
+            if (rk === my) rkFinish(my);
+        }
+
+        function rkFinish(my) {
+            my.phase = 'over';
+            const me = my.score, op = my.oppScore, human = my.mode === 'human';
+            const res = me > op ? 'win' : me < op ? 'lose' : 'draw';
+            const r = rkLoad();
+            const delta = res === 'win' ? (human ? 20 : 10) : res === 'lose' ? -(human ? 15 : 8) : 0;
+            r.rating = Math.max(0, r.rating + delta);
+            if (res === 'win') r.w++; else if (res === 'lose') r.l++; else r.d++;
+            rkSave(r);
+            const title = rkEl('rk-result-title');
+            title.textContent = res === 'win' ? '🏆 勝利！' : res === 'lose' ? '💀 落敗' : '🤝 平手';
+            title.className = 'text-4xl font-black ' + (res === 'win' ? 'text-amber-300' : res === 'lose' ? 'text-rose-400' : 'text-slate-200');
+            rkEl('rk-result-score').textContent = `${me} : ${op}`;
+            rkEl('rk-result-names').textContent = `${my.name}  vs  ${my.oppName}（${human ? '真人對戰' : 'AI 對戰'}）`;
+            rkEl('rk-result-delta').textContent = `積分 ${delta >= 0 ? '+' : ''}${delta}（目前 ${r.rating}）`;
+            rkView('result');
+            sound.play(res === 'win' ? 'achievement' : 'wrong');
+            if (human && my.mid) setTimeout(() => rkDel(`matches/${my.mid}/${my.id}`), 20000);
+        }
+        window.addEventListener('pagehide', () => {
+            if (rk && rk.phase === 'search' && rk.queued && getOnlineUrl()) {
+                try { fetch(`${getOnlineUrl()}/ranked/queue/${rk.id}.json`, { method: 'DELETE', keepalive: true }).catch(() => {}); } catch (e) {}
+            }
+        });
+
+        // ================= 備份 / 還原進度 =================
+        function backupMsg(text, ok) {
+            const el = document.getElementById('backup-msg');
+            el.textContent = text;
+            el.className = 'text-xs min-h-[1rem] ' + (ok ? 'text-emerald-400' : 'text-red-400');
+        }
+        function openBackupModal() {
+            document.getElementById('backup-text').value = '';
+            backupMsg('', true);
+            document.getElementById('backup-modal').classList.remove('hidden');
+        }
+        function closeBackupModal() {
+            document.getElementById('backup-modal').classList.add('hidden');
+        }
+        function exportProgress() {
+            const data = {};
+            try {
+                for (let i = 0; i < localStorage.length; i++) {
+                    const k = localStorage.key(i);
+                    if (k && k.startsWith('math_rpg_')) data[k] = localStorage.getItem(k);
+                }
+            } catch (e) {}
+            const keys = Object.keys(data).length;
+            if (keys === 0) { backupMsg('這個網址上沒有找到任何進度可以備份', false); return; }
+            const code = 'MRPG1:' + btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+            const ta = document.getElementById('backup-text');
+            ta.value = code;
+            ta.focus(); ta.select();
+            backupMsg(`已產生備份碼（${keys} 項資料），請按「複製」`, true);
+        }
+        async function copyBackup() {
+            const ta = document.getElementById('backup-text');
+            if (!ta.value) { backupMsg('請先按「產生備份碼」', false); return; }
+            try { await navigator.clipboard.writeText(ta.value); backupMsg('已複製到剪貼簿', true); }
+            catch (e) { ta.select(); try { document.execCommand('copy'); backupMsg('已複製到剪貼簿', true); } catch (e2) { backupMsg('無法自動複製，請長按文字手動複製', false); } }
+        }
+        function importProgress() {
+            const raw = document.getElementById('backup-text').value.trim();
+            if (!raw.startsWith('MRPG1:')) { backupMsg('備份碼格式不正確，應以 MRPG1: 開頭', false); return; }
+            let data;
+            try { data = JSON.parse(decodeURIComponent(escape(atob(raw.slice(6))))); }
+            catch (e) { backupMsg('備份碼無法解讀，可能複製不完整', false); return; }
+            const entries = Object.entries(data || {}).filter(([k, v]) => k.startsWith('math_rpg_') && typeof v === 'string');
+            if (entries.length === 0) { backupMsg('備份碼裡沒有可還原的資料', false); return; }
+            try { entries.forEach(([k, v]) => localStorage.setItem(k, v)); }
+            catch (e) { backupMsg('寫入失敗，這個環境可能禁止儲存資料', false); return; }
+            backupMsg(`已還原 ${entries.length} 項資料，正在重新載入…`, true);
+            setTimeout(() => location.reload(), 900);
+        }
+
+        // ================= 遊玩統計 =================
+        const STATS_KEY = 'math_rpg_stats';
+        function loadStats() {
+            const zero = { answered: 0, correct: 0, wrong: 0, seconds: 0, battles: 0, wins: 0 };
+            try {
+                const o = JSON.parse(localStorage.getItem(STATS_KEY) || '{}') || {};
+                Object.keys(zero).forEach(k => { zero[k] = Math.max(0, Number(o[k]) || 0); });
+            } catch (e) {}
+            return zero;
+        }
+        let playStats = loadStats();
+        function saveStats() {
+            try { localStorage.setItem(STATS_KEY, JSON.stringify(playStats)); } catch (e) {}
+            scheduleSync(15000);
+        }
+        function recordAnswer(isCorrect) {
+            playStats.answered++;
+            if (isCorrect) playStats.correct++; else playStats.wrong++;
+            saveStats();
+        }
+
+        // 只在戰鬥畫面顯示且分頁可見時累計時間；單次最多加 2 秒，避免裝置休眠被算進去
+        let lastStatTick = Date.now();
+        setInterval(() => {
+            const now = Date.now();
+            const dt = Math.min((now - lastStatTick) / 1000, 2);
+            lastStatTick = now;
+            if (document.hidden) return;
+            const bs = document.getElementById('battle-screen');
+            if (bs && !bs.classList.contains('hidden')) {
+                playStats.seconds += dt;
+                saveStats();
+            }
+        }, 1000);
+
+        function formatDuration(sec) {
+            sec = Math.floor(sec);
+            const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), r = sec % 60;
+            if (h > 0) return `${h} 小時 ${m} 分`;
+            if (m > 0) return `${m} 分 ${r} 秒`;
+            return `${r} 秒`;
+        }
+        function openStatsModal() {
+            const st = playStats;
+            document.getElementById('stat-time').textContent = formatDuration(st.seconds);
+            document.getElementById('stat-answered').textContent = st.answered;
+            document.getElementById('stat-correct').textContent = st.correct;
+            document.getElementById('stat-wrong').textContent = st.wrong;
+            document.getElementById('stat-accuracy').textContent = st.answered ? `${(st.correct / st.answered * 100).toFixed(1)}%` : '--';
+            document.getElementById('stat-battles').textContent = st.battles;
+            document.getElementById('stat-wins').textContent = st.wins;
+            document.getElementById('stats-modal').classList.remove('hidden');
+        }
+        function closeStatsModal() {
+            document.getElementById('stats-modal').classList.add('hidden');
+        }
+
+        // ================= 玩家名稱 & 排行榜 =================
+        const LB_KEY = 'math_rpg_leaderboard';
+        const NAME_KEY = 'math_rpg_player_name';
+        const DIFF_LABELS = { easy: '簡單', medium: '中等', hard: '困難', nightmare: '噩夢', hell: '地獄', genesis: '創世' };
+        let lbDiff = 'easy', lbSort = 'score', lbHighlightId = null;
+
+        function cleanName(raw) {
+            return String(raw || '').replace(/[\u0000-\u001f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 12);
+        }
+        function getPlayerName() {
+            const acc = getAccount();
+            if (acc) return acc.name;
+            const el = document.getElementById('player-name-input');
+            return cleanName(el ? el.value : localStorage.getItem(NAME_KEY)) || '無名勇者';
+        }
+        function saveNameInput() {
+            if (getAccount()) return;
+            const el = document.getElementById('player-name-input');
+            try { localStorage.setItem(NAME_KEY, cleanName(el.value)); } catch (e) {}
+        }
+        function loadSavedName() {
+            let saved = '';
+            try { saved = localStorage.getItem(NAME_KEY) || ''; } catch (e) {}
+            const el = document.getElementById('player-name-input');
+            if (el && saved) el.value = saved;
+        }
+
+        function loadLeaderboard() {
+            try {
+                const lb = JSON.parse(localStorage.getItem(LB_KEY) || '{}');
+                return (lb && typeof lb === 'object') ? lb : {};
+            } catch (e) { return {}; }
+        }
+        function saveLeaderboard(lb) {
+            try { localStorage.setItem(LB_KEY, JSON.stringify(lb)); } catch (e) {}
+        }
+        function sortEntries(list, mode) {
+            return [...list].sort((a, b) => mode === 'time'
+                ? (a.time - b.time) || (b.score - a.score)
+                : (b.score - a.score) || (a.time - b.time));
+        }
+
+        function recordLeaderboard() {
+            const d = gameState.diff;
+            const lb = loadLeaderboard();
+            const arr = Array.isArray(lb[d]) ? lb[d] : [];
+            const entry = {
+                id: Date.now() + Math.random(),
+                name: gameState.playerName || '無名勇者',
+                score: gameState.score,
+                time: Math.round(gameState.battleElapsedTime * 10) / 10,
+                combo: gameState.maxCombo,
+                ts: Date.now()
+            };
+            arr.push(entry);
+            lb[d] = arr.slice(-200);
+            saveLeaderboard(lb);
+            gameState.lastRank = {
+                id: entry.id,
+                diff: d,
+                total: lb[d].length,
+                scoreRank: sortEntries(lb[d], 'score').findIndex(e => e.id === entry.id) + 1,
+                timeRank: sortEntries(lb[d], 'time').findIndex(e => e.id === entry.id) + 1
+            };
+
+            if (getOnlineUrl()) {
+                gameState.onlineRank = 'pending';
+                submitOnline(entry)
+                    .then(r => { gameState.onlineRank = r; })
+                    .catch(e => { gameState.onlineRank = { error: e.message || '未知錯誤' }; })
+                    .finally(updateOnlineRankText);
+            }
+        }
+
+        function openLeaderboardModal(diff, highlightId = null) {
+            lbHighlightId = highlightId;
+            onlineCache = {};
+            if (getOnlineUrl() && lbScope !== 'local') lbScope = 'online';
+            if (diff && DIFF_LABELS[diff]) lbDiff = diff;
+            else if (!DIFF_LABELS[lbDiff]) lbDiff = 'easy';
+            if (lbDiff === 'genesis' && !gameState.secretUnlocked) lbDiff = 'easy';
+            renderLeaderboard();
+            document.getElementById('leaderboard-modal').classList.remove('hidden');
+        }
+        function closeLeaderboardModal() {
+            document.getElementById('leaderboard-modal').classList.add('hidden');
+        }
+        function setLeaderboardSort(mode) { lbSort = mode; renderLeaderboard(); }
+        function setLeaderboardDiff(d) { lbDiff = d; renderLeaderboard(); }
+
+        // ---- 線上排行榜（Firebase Realtime Database REST）----
+        // 想讓所有玩家共用同一份榜單：把資料庫網址填在下面，或在遊戲內「排行榜 → 線上排行榜設定」貼上。
+        const ONLINE_DB_URL = 'https://project-4454350811760131836-default-rtdb.asia-southeast1.firebasedatabase.app';
+        const CLIENT_KEY = 'math_rpg_client_id', URL_KEY = 'math_rpg_online_url';
+        let lbScope = 'online';
+        let onlineCache = {}, lbLoading = {};
+
+        function getOnlineUrl() {
+            let u = '';
+            try { u = localStorage.getItem(URL_KEY) || ''; } catch (e) {}
+            if (!u) u = ONLINE_DB_URL; // 遊戲內手動設定的網址優先，沒有才用預設值
+            u = String(u).trim().replace(/\/+$/, '');
+            return /^https:\/\/[^\s]+$/.test(u) ? u : '';
+        }
+        function getClientId() {
+            let id = '';
+            try { id = localStorage.getItem(CLIENT_KEY) || ''; } catch (e) {}
+            if (!id) {
+                id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+                try { localStorage.setItem(CLIENT_KEY, id); } catch (e) {}
+            }
+            return id;
+        }
+        async function onlineFetch(path, opts = {}, root = 'leaderboard') {
+            const base = getOnlineUrl();
+            if (!base) throw new Error('no-url');
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 7000);
+            try {
+                const res = await fetch(`${base}/${root}${path ? '/' + path : ''}.json`, { ...opts, signal: ctrl.signal });
+                if (!res.ok) { const err = new Error('http'); err.status = res.status; throw err; }
+                return await res.json();
+            } catch (e) {
+                const ne = new Error(describeOnlineError(e));
+                ne.status = e && e.status;
+                throw ne;
+            } finally { clearTimeout(timer); }
+        }
+        function describeOnlineError(e) {
+            if (e && (e.status === 401 || e.status === 403)) return '權限被拒（規則尚未發布，或沒有開放讀寫）';
+            if (e && e.status === 404) return '找不到資料庫（網址可能有誤）';
+            if (e && e.status) return `伺服器回應 HTTP ${e.status}`;
+            if (e && e.name === 'AbortError') return '連線逾時';
+            return '連不上伺服器（網址錯誤，或目前環境封鎖了對外連線）';
+        }
+        async function testOnlineConnection() {
+            const out = document.getElementById('lb-test-result');
+            out.textContent = '測試中…';
+            out.className = 'mt-2 text-slate-400';
+            try {
+                await onlineFetch('easy');
+                out.textContent = '✅ 連線成功';
+                out.className = 'mt-2 text-emerald-400';
+            } catch (e) {
+                out.textContent = `❌ ${e.message}`;
+                out.className = 'mt-2 text-red-400';
+            }
+        }
+
+        // ---- 在線人數：每 20 秒心跳一次（寫入伺服器時間），再數「最近 50 秒內有心跳」的人 ----
+        const PRESENCE_INTERVAL = 20000, PRESENCE_WINDOW = 50000, PRESENCE_STALE = 10 * 60 * 1000;
+        function setOnlineBadge(text) {
+            const badge = document.getElementById('online-badge');
+            if (!text) { badge.classList.add('hidden'); badge.classList.remove('flex'); return; }
+            document.getElementById('online-badge-text').textContent = text;
+            badge.classList.remove('hidden');
+            badge.classList.add('flex');
+        }
+        async function presenceBeat() {
+            if (!getOnlineUrl() || document.hidden) return;
+            const id = getClientId();
+            try {
+                await onlineFetch(id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: '{".sv":"timestamp"}' }, 'presence');
+                const all = (await onlineFetch('', {}, 'presence')) || {};
+                const now = typeof all[id] === 'number' ? all[id] : Date.now();
+                const entries = Object.entries(all).filter(([, t]) => typeof t === 'number');
+                const count = entries.filter(([, t]) => now - t <= PRESENCE_WINDOW).length;
+                setOnlineBadge(`🟢 ${count} 人在線`);
+                // 順手清掉久未更新的舊紀錄（每次最多 3 筆）
+                entries.filter(([, t]) => now - t > PRESENCE_STALE).slice(0, 3)
+                    .forEach(([k]) => onlineFetch(k, { method: 'DELETE' }, 'presence').catch(() => {}));
+            } catch (e) {
+                setOnlineBadge(/權限被拒/.test(e.message) ? '🟡 在線人數：需更新規則' : '');
+            }
+        }
+        function presenceLeave() {
+            const base = getOnlineUrl();
+            if (!base) return;
+            try { fetch(`${base}/presence/${getClientId()}.json`, { method: 'DELETE', keepalive: true }).catch(() => {}); } catch (e) {}
+        }
+        setInterval(presenceBeat, PRESENCE_INTERVAL);
+        document.addEventListener('visibilitychange', () => { document.hidden ? presenceLeave() : presenceBeat(); });
+        window.addEventListener('pagehide', presenceLeave);
+
+        function onlineRanks(all, id) {
+            const entries = Object.entries(all || {}).map(([k, v]) => ({ id: k, ...(v || {}) }));
+            const rankOf = key => {
+                const list = entries.filter(e => e[key] && typeof e[key].score === 'number' && typeof e[key].time === 'number')
+                    .map(e => ({ id: e.id, score: e[key].score, time: e[key].time }));
+                const sorted = sortEntries(list, key === 't' ? 'time' : 'score');
+                return sorted.findIndex(e => e.id === id) + 1;
+            };
+            return { scoreRank: rankOf('s'), timeRank: rankOf('t'), total: entries.length };
+        }
+
+        async function submitOnline(entry) {
+            const id = getPlayerKey(), d = gameState.diff;
+            const cur = (await onlineFetch(`${d}/${id}`)) || {};
+            const run = { score: entry.score, time: entry.time, combo: entry.combo, ts: entry.ts };
+            const next = { name: entry.name, s: cur.s, t: cur.t };
+            if (!cur.s || run.score > cur.s.score || (run.score === cur.s.score && run.time < cur.s.time)) next.s = run;
+            if (!cur.t || run.time < cur.t.time) next.t = run;
+            await onlineFetch(`${d}/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(next) });
+            const all = (await onlineFetch(d)) || {};
+            return onlineRanks(all, id);
+        }
+
+        function updateOnlineRankText() {
+            const el = document.getElementById('end-online-rank-text');
+            const r = gameState.onlineRank;
+            if (!r || gameState.isMistakePracticeMode) { el.classList.add('hidden'); return; }
+            el.classList.remove('hidden');
+            if (r === 'pending') el.textContent = '🌐 正在送出成績到線上排行榜…';
+            else if (r.error) el.textContent = `⚠️ 無法連線到線上排行榜：${r.error}（成績只存在本機）`;
+            else el.textContent = `🌐 線上排行榜：分數第 ${r.scoreRank} 名、時間第 ${r.timeRank} 名（共 ${r.total} 位勇者）`;
+        }
+
+        function saveOnlineUrl() {
+            const raw = document.getElementById('lb-url-input').value.trim().replace(/\/+$/, '');
+            if (raw && !/^https:\/\/[^\s]+$/.test(raw)) { showNotice('網址需以 https:// 開頭', true); return; }
+            try { raw ? localStorage.setItem(URL_KEY, raw) : localStorage.removeItem(URL_KEY); } catch (e) {}
+            onlineCache = {};
+            lbScope = raw ? 'online' : 'local';
+            renderLeaderboard();
+            if (raw) presenceBeat(); else setOnlineBadge('');
+            showNotice(raw ? '已儲存線上排行榜網址' : '已清除線上排行榜網址');
+        }
+
+        async function loadOnline(diff) {
+            lbLoading[diff] = true;
+            try { onlineCache[diff] = { data: (await onlineFetch(diff)) || {} }; }
+            catch (e) { onlineCache[diff] = { error: e.message || '未知錯誤' }; }
+            lbLoading[diff] = false;
+            if (!document.getElementById('leaderboard-modal').classList.contains('hidden') && lbDiff === diff) renderLeaderboard();
+        }
+
+        function lbRowsLocal() {
+            return sortEntries(loadLeaderboard()[lbDiff] || [], lbSort)
+                .map(e => ({ ...e, mine: lbHighlightId !== null && e.id === lbHighlightId }));
+        }
+        function lbRowsOnline(data) {
+            const k = lbSort === 'time' ? 't' : 's', me = getPlayerKey();
+            const rows = Object.entries(data || {})
+                .filter(([id, v]) => v && v[k] && typeof v[k].score === 'number' && typeof v[k].time === 'number')
+                .map(([id, v]) => ({ id, name: cleanName(v.name) || '無名勇者', score: v[k].score, time: v[k].time,
+                                     combo: v[k].combo || 0, ts: v[k].ts || 0, mine: id === me }));
+            return sortEntries(rows, lbSort);
+        }
+
+        function renderLeaderboard() {
+            const hasOnline = !!getOnlineUrl();
+            if (!hasOnline) lbScope = 'local';
+
+            const scopeBox = document.getElementById('lb-scope');
+            scopeBox.innerHTML = '';
+            if (hasOnline) {
+                [['online', '🌐 線上'], ['local', '💾 本機']].forEach(([m, label]) => {
+                    const b = document.createElement('button');
+                    b.textContent = label;
+                    b.className = 'px-3 py-1 rounded-full border font-bold ' +
+                        (m === lbScope ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400' : 'bg-slate-900 text-slate-400 border-slate-700');
+                    b.onclick = () => { lbScope = m; renderLeaderboard(); };
+                    scopeBox.appendChild(b);
+                });
+            }
+            document.getElementById('lb-note').textContent = lbScope === 'online' ? '所有玩家的個人最佳成績' : '紀錄保存在這個瀏覽器';
+            const settings = document.getElementById('lb-settings');
+            const urlInput = document.getElementById('lb-url-input');
+            if (document.activeElement !== urlInput) urlInput.value = getOnlineUrl(); // 顯示目前實際使用的網址（含預設值）
+
+            const tabs = document.getElementById('lb-tabs');
+            tabs.innerHTML = '';
+            Object.keys(DIFF_LABELS).forEach(d => {
+                if (d === 'genesis' && !gameState.secretUnlocked) return;
+                const b = document.createElement('button');
+                b.textContent = DIFF_LABELS[d];
+                b.className = 'px-3 py-1 rounded-full border text-xs font-bold transition ' +
+                    (d === lbDiff ? 'bg-amber-500 text-slate-950 border-amber-300' : 'bg-slate-900 text-slate-300 border-slate-700 hover:border-amber-400/60');
+                b.onclick = () => { delete onlineCache[d]; setLeaderboardDiff(d); };
+                tabs.appendChild(b);
+            });
+
+            ['score', 'time'].forEach(m => {
+                document.getElementById(`lb-sort-${m}`).className = 'px-3 py-1 rounded-full border font-bold ' +
+                    (m === lbSort ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400' : 'bg-slate-900 text-slate-400 border-slate-700');
+            });
+
+            const list = document.getElementById('lb-list');
+            list.innerHTML = '';
+            const message = text => {
+                const div = document.createElement('div');
+                div.className = 'text-center py-10 text-slate-500 text-sm font-bold';
+                div.textContent = text;
+                list.appendChild(div);
+            };
+
+            let rows;
+            if (lbScope === 'online') {
+                const c = onlineCache[lbDiff];
+                if (!c) { message('載入中…'); if (!lbLoading[lbDiff]) loadOnline(lbDiff); return; }
+                if (c.error) { message(`無法連線到線上排行榜：${c.error}`); return; }
+                rows = lbRowsOnline(c.data);
+            } else {
+                rows = lbRowsLocal();
+            }
+            rows = rows.slice(0, 20);
+            if (rows.length === 0) { message('尚無紀錄，快去挑戰吧！'); return; }
+
+            const medals = ['🥇', '🥈', '🥉'];
+            rows.forEach((e, i) => {
+                const row = document.createElement('div');
+                row.className = 'grid grid-cols-[2rem_1fr_auto_auto] items-center gap-2 px-3 py-2 rounded-lg border text-xs ' +
+                    (e.mine ? 'bg-amber-500/20 border-amber-400' : 'bg-slate-900 border-slate-800');
+
+                const rank = document.createElement('span');
+                rank.className = 'font-black text-center text-sm ' + (i < 3 ? '' : 'text-slate-400');
+                rank.textContent = i < 3 ? medals[i] : `${i + 1}`;
+
+                const nameBox = document.createElement('div');
+                nameBox.className = 'min-w-0';
+                const name = document.createElement('div');
+                name.className = 'font-bold truncate ' + (e.mine ? 'text-amber-300' : 'text-slate-100');
+                name.textContent = e.name + (e.mine && lbScope === 'online' ? '（你）' : '');
+                const sub = document.createElement('div');
+                sub.className = 'text-[10px] text-slate-500';
+                const dt = new Date(e.ts);
+                sub.textContent = `連擊 ${e.combo}x · ${dt.getMonth() + 1}/${dt.getDate()}`;
+                nameBox.append(name, sub);
+
+                const score = document.createElement('span');
+                score.className = 'font-mono font-bold text-right ' + (lbSort === 'score' ? 'text-amber-300' : 'text-slate-400');
+                score.textContent = `${e.score}`;
+
+                const time = document.createElement('span');
+                time.className = 'font-mono font-bold text-right w-14 ' + (lbSort === 'time' ? 'text-cyan-300' : 'text-slate-400');
+                time.textContent = `${e.time.toFixed(1)}s`;
+
+                row.append(rank, nameBox, score, time);
+                list.appendChild(row);
+            });
+        }
+
+        function startGame(diff) {
+            gameState.diff = diff;
+            gameState.playerName = getPlayerName();
+            gameState.lastRank = null;
+            playStats.battles++;
+            saveStats();
+            gameState.onlineRank = null;
+            const bConfig = BOSS_DATA[diff];
+
+            gameState.playerHp = 100;
+            gameState.playerMaxHp = 100;
+            gameState.playerMp = 0;
+            gameState.bossHp = bConfig.hp;
+            gameState.bossMaxHp = bConfig.hp;
+            gameState.bossShield = bConfig.shield;
+            gameState.isPhase2 = false;
+            gameState.score = 0;
+            gameState.combo = 0;
+            gameState.maxCombo = 0;
+            gameState.correctCount = 0;
+            gameState.wrongCount = 0;
+            gameState.skillsUsedCount = 0;
+            gameState.isBerserk = false;
+            gameState.isShieldActive = false;
+            gameState.mistakeLog = [];
+            gameState.isMistakePracticeMode = false;
+
+            gameState.battleStartTime = Date.now();
+            gameState.battleElapsedTime = 0;
+            clearInterval(gameState.battleTimerInterval);
+            gameState.battleTimerInterval = setInterval(() => {
+                gameState.battleElapsedTime = (Date.now() - gameState.battleStartTime) / 1000;
+                document.getElementById('battle-elapsed-time').innerText = `${gameState.battleElapsedTime.toFixed(1)}s`;
+            }, 100);
+
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('end-screen').classList.add('hidden');
+            document.getElementById('battle-screen').classList.remove('hidden');
+
+            document.getElementById('boss-name').innerText = bConfig.name;
+            document.getElementById('boss-icon').className = `fa-solid ${bConfig.icon}`;
+            document.getElementById('boss-avatar').className = `w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border-2 border-red-500/50 flex items-center justify-center text-4xl sm:text-5xl animate-boss ${bConfig.color} shadow-xl`;
+            document.getElementById('boss-phase-badge').classList.add('hidden');
+
+            updateShieldUI();
+            updateHUD();
+            nextTurn();
+        }
+
+        function nextTurn() {
+            clearInterval(gameState.timerInterval);
+
+            if (!gameState.isPhase2 && gameState.bossHp <= gameState.bossMaxHp * 0.5) {
+                gameState.isPhase2 = true;
+                document.getElementById('boss-phase-badge').classList.remove('hidden');
+                document.getElementById('boss-avatar').className += ' animate-boss-rage';
+                sound.play('hit');
+            }
+
+            let qData;
+            if (gameState.isMistakePracticeMode) {
+                if (gameState.mistakeLog.length === 0) {
+                    onVictory();
+                    return;
+                }
+                const mistakeItem = gameState.mistakeLog.pop();
+                qData = {
+                    question: mistakeItem.question,
+                    correct: mistakeItem.correct,
+                    options: mistakeItem.options,
+                    steps: mistakeItem.steps
+                };
+            } else {
+                qData = generateQuestion(gameState.diff);
+            }
+
+            gameState.currentQ = qData;
+            gameState.answerLocked = false;
+            gameState.questionStartTime = Date.now();
+
+            const qEl = document.getElementById('question-text');
+            qEl.innerHTML = '';
+            const qSpan = document.createElement('span');
+            qSpan.textContent = qData.question;
+            qEl.appendChild(qSpan);
+            renderMath(qSpan);
+
+            const grid = document.getElementById('options-grid');
+            grid.innerHTML = '';
+            const keyBadges = ['A / 1', 'B / 2', 'C / 3', 'D / 4'];
+
+            qData.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "p-3 sm:p-4 bg-slate-900 hover:bg-slate-800 border-2 border-slate-800 hover:border-amber-400/60 rounded-xl flex items-center justify-between text-slate-100 font-bold transition duration-150 group shadow-lg";
+                btn.onclick = () => handleAnswer(idx);
+                btn.id = `option-btn-${idx}`;
+                btn.innerHTML = `
+                    <span class="text-sm sm:text-base font-mono group-hover:text-amber-300 transition">${opt}</span>
+                    <span class="key-badge group-hover:border-amber-400">${keyBadges[idx]}</span>
+                `;
+                grid.appendChild(btn);
+            });
+            renderMath(grid);
+
+            gameState.timerMax = BOSS_DATA[gameState.diff].timeMax;
+            gameState.timerLeft = gameState.timerMax;
+            updateTimerUI();
+
+            gameState.timerInterval = setInterval(() => {
+                gameState.timerLeft -= 0.1;
+                updateTimerUI();
+                if (gameState.timerLeft <= 0) {
+                    clearInterval(gameState.timerInterval);
+                    handleAnswer(-1); // Timeout
+                }
+            }, 100);
+        }
+
+        function updateTimerUI() {
+            const bar = document.getElementById('question-timer-bar');
+            const label = document.getElementById('question-timer-label');
+            const pct = Math.max(0, (gameState.timerLeft / gameState.timerMax) * 100);
+            bar.style.width = `${pct}%`;
+            label.innerText = `⏳ 剩餘時間: ${Math.max(0, gameState.timerLeft).toFixed(1)}s`;
+        }
+
+        function handleAnswer(optIdx) {
+            if (gameState.answerLocked) return; // 防止高速連點造成重複傷害
+            gameState.answerLocked = true;
+            clearInterval(gameState.timerInterval);
+            const q = gameState.currentQ;
+            const isTimeout = (optIdx === -1);
+            const userChosen = isTimeout ? '⏱️ 超時未作答' : q.options[optIdx];
+            const isCorrect = !isTimeout && (userChosen === q.correct);
+            recordAnswer(isCorrect);
+
+            if (isCorrect) {
+                sound.play('correct');
+                gameState.correctCount++;
+                gameState.combo++;
+                if (gameState.combo > gameState.maxCombo) gameState.maxCombo = gameState.combo;
+
+                const timeTaken = (Date.now() - gameState.questionStartTime) / 1000;
+                if (timeTaken <= 2.5) unlockAchievement('fast_answer');
+                if (gameState.combo >= 10) unlockAchievement('combo_10');
+                if (gameState.correctCount >= 1) unlockAchievement('first_blood');
+
+                let dmg = 25 + Math.floor(gameState.combo * 3);
+                if (gameState.isBerserk) {
+                    dmg = Math.floor(dmg * 2.5);
+                    gameState.isBerserk = false;
+                }
+
+                if (gameState.bossShield > 0) {
+                    gameState.bossShield--;
+                    updateShieldUI();
+                    showDamagePopup("🛡️ 護盾抵擋!", "text-cyan-400");
+                } else {
+                    gameState.bossHp -= dmg;
+                    gameState.score += dmg * 10;
+                    showDamagePopup(`-${dmg}`, "text-amber-400");
+                }
+
+                gameState.playerMp = Math.min(100, gameState.playerMp + 20);
+
+                if (gameState.bossHp <= 0) {
+                    gameState.bossHp = 0;
+                    updateHUD();
+                    setTimeout(onVictory, 300);
+                } else {
+                    updateHUD();
+                    setTimeout(nextTurn, 400);
+                }
+
+            } else {
+                sound.play('wrong');
+                gameState.wrongCount++;
+                gameState.combo = 0;
+
+                let atk = 15;
+                if (gameState.isPhase2) atk = 25;
+
+                if (gameState.isShieldActive) {
+                    gameState.isShieldActive = false;
+                    showDamagePopup("🛡️ 聖光護盾抵消攻擊!", "text-cyan-300");
+                } else {
+                    gameState.playerHp -= atk;
+                    showDamagePopup(`受傷 -${atk}`, "text-red-500");
+                }
+
+                gameState.mistakeLog.push({
+                    question: q.question,
+                    userAns: userChosen,
+                    correctAns: q.correct,
+                    steps: q.steps,
+                    options: q.options,
+                    correct: q.correct
+                });
+
+                updateHUD();
+
+                if (gameState.playerHp <= 0) {
+                    gameState.playerHp = 0;
+                    updateHUD();
+                    setTimeout(onDefeat, 500);
+                } else {
+                    showExplanationModal(q, userChosen);
+                }
+            }
+        }
+
+        function showDamagePopup(text, colorClass) {
+            const container = document.getElementById('damage-container');
+            const popup = document.createElement('div');
+            popup.className = `damage-popup text-2xl sm:text-3xl ${colorClass} left-1/2 top-1/3 -translate-x-1/2`;
+            popup.innerText = text;
+            container.appendChild(popup);
+            setTimeout(() => popup.remove(), 850);
+        }
+
+        function showExplanationModal(q, userAns) {
+            document.getElementById('exp-q-text').textContent = q.question;
+            document.getElementById('exp-user-ans').textContent = userAns;
+            document.getElementById('exp-correct-ans').textContent = q.correct;
+            document.getElementById('exp-step-text').textContent = q.steps;
+            ['exp-q-text', 'exp-user-ans', 'exp-correct-ans', 'exp-step-text'].forEach(id => renderMath(document.getElementById(id)));
+            document.getElementById('explanation-modal').classList.remove('hidden');
+        }
+
+        function closeExplanationModal() {
+            document.getElementById('explanation-modal').classList.add('hidden');
+            nextTurn();
+        }
+
+        function useSkill(type) {
+            if (type === 'heal' && gameState.playerMp >= 30) {
+                gameState.playerMp -= 30;
+                gameState.playerHp = Math.min(gameState.playerMaxHp, gameState.playerHp + 40);
+                showDamagePopup("💚 +40 HP", "text-emerald-400");
+                sound.play('skill');
+                gameState.skillsUsedCount++;
+            } else if (type === 'shield' && gameState.playerMp >= 40) {
+                gameState.playerMp -= 40;
+                gameState.isShieldActive = true;
+                showDamagePopup("🛡️️ 聖光護盾開啟!", "text-cyan-300");
+                sound.play('skill');
+                gameState.skillsUsedCount++;
+            } else if (type === 'berserk' && gameState.playerMp >= 60) {
+                gameState.playerMp -= 60;
+                gameState.isBerserk = true;
+                showDamagePopup("🔥 狂暴蓄力中 (2.5x)!", "text-orange-400");
+                sound.play('skill');
+                gameState.skillsUsedCount++;
+            } else if (type === 'hint' && gameState.playerMp >= 30) {
+                gameState.playerMp -= 30;
+                const correctOpt = gameState.currentQ.correct;
+                let removed = 0;
+                gameState.currentQ.options.forEach((opt, idx) => {
+                    if (opt !== correctOpt && removed < 2) {
+                        const btn = document.getElementById(`option-btn-${idx}`);
+                        if (btn && !btn.disabled) {
+                            btn.disabled = true;
+                            btn.classList.add('opacity-20', 'pointer-events-none');
+                            removed++;
+                        }
+                    }
+                });
+                showDamagePopup("💡 真理之眼排除錯項!", "text-purple-300");
+                sound.play('skill');
+                gameState.skillsUsedCount++;
+            }
+
+            if (gameState.skillsUsedCount >= 5) unlockAchievement('skill_master');
+            updateHUD();
+        }
+
+        function setupKeyboardListeners() {
+            window.addEventListener('keydown', (e) => {
+                const key = e.key.toUpperCase();
+
+                if (!document.getElementById('explanation-modal').classList.contains('hidden')) {
+                    if (e.key === ' ' || e.key === 'Enter') {
+                        closeExplanationModal();
+                        return;
+                    }
+                }
+
+                if (!document.getElementById('battle-screen').classList.contains('hidden')) {
+                    if (key === '1' || key === 'Q') useSkill('heal');
+                    if (key === '2' || key === 'W') useSkill('shield');
+                    if (key === '3' || key === 'E') useSkill('berserk');
+                    if (key === '4' || key === 'R') useSkill('hint');
+
+                    if (key === 'A') handleAnswer(0);
+                    if (key === 'B') handleAnswer(1);
+                    if (key === 'C') handleAnswer(2);
+                    if (key === 'D') handleAnswer(3);
+                }
+            });
+        }
+
+        function openPasscodeModal() {
+            document.getElementById('passcode-modal').classList.remove('hidden');
+            document.getElementById('passcode-input').focus();
+        }
+
+        function closePasscodeModal() {
+            document.getElementById('passcode-modal').classList.add('hidden');
+        }
+
+        function showLootModal() {
+            document.getElementById('loot-passcode-text').innerText = gameState.secretPasscode;
+            document.getElementById('loot-modal').classList.remove('hidden');
+        }
+
+        function closeLootModal() {
+            document.getElementById('loot-modal').classList.add('hidden');
+            renderEndScreen(true, false);
+        }
+
+        function onVictory() {
+            clearInterval(gameState.timerInterval);
+            clearInterval(gameState.battleTimerInterval);
+
+            let isNewRecord = false;
+            // ONLY RECORD BEST TIMES & UNLOCK DIFFICULTY ACHIEVEMENTS IN NORMAL BATTLE MODE (NOT MISTAKE PRACTICE)
+            if (!gameState.isMistakePracticeMode) {
+                recordLeaderboard();
+                playStats.wins++;
+                saveStats();
+                const currentDiff = gameState.diff;
+                const prevBest = gameState.bestTimes[currentDiff];
+                if (!prevBest || gameState.battleElapsedTime < prevBest) {
+                    gameState.bestTimes[currentDiff] = gameState.battleElapsedTime;
+                    localStorage.setItem('math_rpg_best_times', JSON.stringify(gameState.bestTimes));
+                    updateBestTimesDisplay();
+                    isNewRecord = true;
+                }
+
+                if (gameState.diff === 'easy') unlockAchievement('win_easy');
+                if (gameState.diff === 'hard' || gameState.diff === 'nightmare') unlockAchievement('win_hard');
+                if (gameState.diff === 'hell') unlockAchievement('win_hell');
+                if (gameState.diff === 'genesis') unlockAchievement('win_genesis');
+
+                if (gameState.playerHp / gameState.playerMaxHp < 0.2) unlockAchievement('clutch_win');
+            }
+
+            if (gameState.diff === 'hell' && !gameState.isMistakePracticeMode) {
+                if (Math.random() <= 0.5) {
+                    showLootModal();
+                    return;
+                }
+            }
+
+            renderEndScreen(true, isNewRecord);
+        }
+
+        function onDefeat() {
+            clearInterval(gameState.timerInterval);
+            clearInterval(gameState.battleTimerInterval);
+            renderEndScreen(false, false);
+        }
+
+        function renderEndScreen(isWin, isNewRecord = false) {
+            document.getElementById('battle-screen').classList.add('hidden');
+            document.getElementById('end-screen').classList.remove('hidden');
+
+            const iconBox = document.getElementById('end-icon-box');
+            const icon = document.getElementById('end-icon');
+            const title = document.getElementById('end-title');
+            const subtitle = document.getElementById('end-subtitle');
+
+            if (isWin) {
+                iconBox.className = "w-16 h-16 rounded-full mx-auto flex items-center justify-center text-3xl shadow-xl bg-amber-500/20 text-amber-400 border-2 border-amber-400";
+                icon.className = "fa-solid fa-trophy";
+                title.className = "text-3xl font-black text-amber-400";
+                title.innerText = isNewRecord ? "🎉 創下最速通關紀錄！" : "討伐成功！巨獸倒下";
+                subtitle.innerText = "你用無懈可擊的算數魔法守護了世界！";
+            } else {
+                iconBox.className = "w-16 h-16 rounded-full mx-auto flex items-center justify-center text-3xl shadow-xl bg-red-500/20 text-red-400 border-2 border-red-500";
+                icon.className = "fa-solid fa-skull-crossbones";
+                title.className = "text-3xl font-black text-red-500";
+                title.innerText = "遠征失敗 ...";
+                subtitle.innerText = "魔王的力量過於強大，再回去複習觀念吧！";
+            }
+
+            const rankEl = document.getElementById('end-rank-text');
+            const lr = gameState.lastRank;
+            if (isWin && lr && !gameState.isMistakePracticeMode) {
+                rankEl.textContent = `🏅 ${gameState.playerName}｜【${DIFF_LABELS[lr.diff]}】排行榜：分數第 ${lr.scoreRank} 名、時間第 ${lr.timeRank} 名（共 ${lr.total} 筆）`;
+                rankEl.classList.remove('hidden');
+            } else {
+                rankEl.classList.add('hidden');
+            }
+            updateOnlineRankText();
+
+            document.getElementById('end-clear-time').innerText = `${gameState.battleElapsedTime.toFixed(1)}s`;
+            document.getElementById('end-score').innerText = gameState.score;
+            document.getElementById('end-max-combo').innerText = `${gameState.maxCombo}x`;
+            document.getElementById('end-correct-count').innerText = gameState.correctCount;
+            document.getElementById('end-wrong-count').innerText = gameState.wrongCount;
+
+            const container = document.getElementById('mistakes-container');
+            container.innerHTML = '';
+
+            document.getElementById('mistake-badge-count').innerText = `${gameState.mistakeLog.length} 題需要複習`;
+            document.getElementById('retry-mistakes-btn').disabled = gameState.mistakeLog.length === 0;
+
+            if (gameState.mistakeLog.length === 0) {
+                container.innerHTML = `<div class="text-center py-6 text-slate-500 text-xs font-bold">✨ 太棒了！本局沒有任何答錯或超時題目！</div>`;
+            } else {
+                gameState.mistakeLog.forEach((item, idx) => {
+                    const card = document.createElement('div');
+                    card.className = "bg-slate-900 border border-slate-800 p-3 rounded-lg text-xs space-y-1.5";
+                    card.innerHTML = `
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-amber-300">#${idx+1} ${item.question}</span>
+                            <span class="text-red-400 font-mono">錯答: ${item.userAns} | 正確: ${item.correctAns}</span>
+                        </div>
+                        <p class="text-[11px] text-slate-400 font-mono bg-slate-950 p-2 rounded border border-slate-800/80 whitespace-pre-line">${item.steps}</p>
+                    `;
+                    container.appendChild(card);
+                });
+                renderMath(container);
+            }
+        }
+
+        function startMistakePractice() {
+            if (gameState.mistakeLog.length === 0) return;
+            unlockAchievement('practice_master');
+            showNotice("進入錯題特訓模式");
+            
+            gameState.isMistakePracticeMode = true;
+            gameState.playerHp = 100;
+            gameState.playerMp = 0;
+            gameState.bossHp = gameState.mistakeLog.length * 50;
+            gameState.bossMaxHp = gameState.bossHp;
+            gameState.bossShield = 0;
+            
+            document.getElementById('end-screen').classList.add('hidden');
+            document.getElementById('battle-screen').classList.remove('hidden');
+            document.getElementById('boss-name').innerText = "錯題幻影 (補習特訓)";
+            updateHUD();
+            nextTurn();
+        }
+
+        function openClearRecordsModal() {
+            document.getElementById('clear-records-modal').classList.remove('hidden');
+        }
+
+        function closeClearRecordsModal() {
+            document.getElementById('clear-records-modal').classList.add('hidden');
+        }
+
+        function executeClearRecords() {
+            gameState.bestTimes = {};
+            localStorage.removeItem('math_rpg_best_times');
+            updateBestTimesDisplay();
+            closeClearRecordsModal();
+            showNotice("速通紀錄已刪除");
+        }
+
+        function openResetConfirmModal() {
+            document.getElementById('reset-confirm-modal').classList.remove('hidden');
+        }
+
+        function closeResetConfirmModal() {
+            document.getElementById('reset-confirm-modal').classList.add('hidden');
+        }
+
+        function executeResetAchievements() {
+            gameState.unlockedAchievements = [];
+            localStorage.removeItem('math_rpg_achievements');
+
+            // 重置成就後，若創世難度已解鎖則靜默補回「真理尋覓者」成就（不彈出成就視窗）
+            checkUnlockedSecrets(true);
+
+            renderAchievementsList();
+            updateAchievementBadge();
+            closeResetConfirmModal();
+            showNotice("成就已重置");
+        }
+
+        function openAchievementsModal() {
+            renderAchievementsList();
+            document.getElementById('achievements-modal').classList.remove('hidden');
+        }
+
+        function closeAchievementsModal() {
+            document.getElementById('achievements-modal').classList.add('hidden');
+        }
+
+        function renderAchievementsList() {
+            const container = document.getElementById('achievements-list-container');
+            container.innerHTML = '';
+
+            ACHIEVEMENTS.forEach(ach => {
+                const isUnlocked = gameState.unlockedAchievements.includes(ach.id);
+                
+                // Extract Title from reward if available
+                let titleReward = null;
+                if (ach.reward.includes('稱號：')) {
+                    titleReward = ach.reward.split('稱號：')[1];
+                }
+
+                const isEquipped = titleReward && (gameState.equippedTitle === titleReward);
+
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-xl border flex items-center gap-3 transition ${
+                    isUnlocked 
+                    ? 'bg-slate-900/90 border-amber-500/50 text-slate-100' 
+                    : 'bg-slate-950/50 border-slate-800/80 text-slate-500'
+                }`;
+
+                let buttonHtml = '';
+                if (isUnlocked) {
+                    if (titleReward) {
+                        if (isEquipped) {
+                            buttonHtml = `<span class="text-[10px] font-black px-2.5 py-1 rounded-lg bg-emerald-950 border border-emerald-400 text-emerald-300 flex items-center gap-1"><i class="fa-solid fa-check"></i> 佩戴中</span>`;
+                        } else {
+                            buttonHtml = `<button onclick="equipTitle('${titleReward}')" class="text-[10px] font-black px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md transition flex items-center gap-1 cursor-pointer"><i class="fa-solid fa-award"></i> 佩戴稱號</button>`;
+                        }
+                    } else {
+                        buttonHtml = `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-950 border border-amber-500/50 text-amber-300">✓ 已解鎖</span>`;
+                    }
+                } else {
+                    buttonHtml = `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-900 text-slate-600">未達成</span>`;
+                }
+
+                card.innerHTML = `
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center text-lg flex-shrink-0 ${
+                        isUnlocked ? 'bg-amber-500/20 text-amber-400 border border-amber-400/50' : 'bg-slate-800 text-slate-600'
+                    }">
+                        <i class="fa-solid ${ach.icon}"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex justify-between items-center gap-2">
+                            <h4 class="font-bold text-sm ${isUnlocked ? 'text-amber-300' : 'text-slate-500'}">${ach.title}</h4>
+                            ${buttonHtml}
+                        </div>
+                        <p class="text-xs text-slate-400 mt-0.5">${ach.desc}</p>
+                        <span class="text-[10px] text-amber-400/80 font-mono block mt-1">🎁 獎勵: ${ach.reward}</span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function unlockAchievement(id, silent = false) {
+            if (gameState.unlockedAchievements.includes(id)) return;
+            gameState.unlockedAchievements.push(id);
+            localStorage.setItem('math_rpg_achievements', JSON.stringify(gameState.unlockedAchievements));
+
+            if (silent) { updateAchievementBadge(); return; } // 靜默補回：不彈窗、不播音效
+
+            const ach = ACHIEVEMENTS.find(a => a.id === id);
+            if (ach) {
+                sound.play('achievement');
+                showToast(ach.title, ach.desc);
+                updateAchievementBadge();
+
+                // Auto-equip if user unlocks a title reward and is still using default title
+                if (ach.reward.includes('稱號：')) {
+                    const newTitle = ach.reward.split('稱號：')[1];
+                    if (gameState.equippedTitle === '初級冒險者') {
+                        equipTitle(newTitle, true); // 成就視窗已顯示，不再疊加提示
+                    }
+                }
+            }
+        }
+
+        let noticeTimer = null;
+        function showNotice(text, isError = false) {
+            const el = document.getElementById('notice-toast');
+            document.getElementById('notice-text').innerText = text;
+            document.getElementById('notice-icon').className = isError
+                ? 'fa-solid fa-circle-xmark text-red-400'
+                : 'fa-solid fa-circle-check text-emerald-400';
+            el.classList.remove('hidden', 'animate-notice');
+            void el.offsetWidth; // 重新觸發動畫
+            el.classList.add('animate-notice');
+            clearTimeout(noticeTimer);
+            noticeTimer = setTimeout(() => el.classList.add('hidden'), 2500);
+        }
+
+        function showToast(title, desc) {
+            const toast = document.getElementById('achievement-toast');
+            document.getElementById('toast-title').innerText = title;
+            document.getElementById('toast-desc').innerText = desc;
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3500);
+        }
+
+        function updateAchievementBadge() {
+            const badge = document.getElementById('achievement-count-badge');
+            if (badge) {
+                badge.innerText = `${gameState.unlockedAchievements.length}/${ACHIEVEMENTS.length}`;
+            }
+        }
+
+        document.getElementById('sound-toggle').onclick = function() {
+            sound.enabled = !sound.enabled;
+            this.innerHTML = sound.enabled 
+                ? `<i class="fa-solid fa-volume-high text-amber-400"></i> <span class="hidden sm:inline">音效</span>` 
+                : `<i class="fa-solid fa-volume-xmark text-slate-500"></i> <span class="hidden sm:inline">音效</span>`;
+        };
+
+        window.onload = function() {
+            loadSavedName();
+            updateAccountUI();
+            presenceBeat();
+            checkUnlockedSecrets();
+            updateBestTimesDisplay();
+            updateAchievementBadge();
+            updateEquippedTitleUI();
+            setupKeyboardListeners();
+        };
+    </script>
+</body>
+</html>
